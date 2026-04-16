@@ -14,6 +14,7 @@ interface ToolbarProps {
   onOpen: () => void;
   onExportPng: () => void;
   onExportJpg: () => void;
+  onExportGb7: () => void;
   onClear: () => void;
 }
 
@@ -22,6 +23,7 @@ function Toolbar({
   onOpen,
   onExportPng,
   onExportJpg,
+  onExportGb7,
   onClear,
 }: ToolbarProps) {
   return (
@@ -76,7 +78,8 @@ function Toolbar({
           <Button
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
-            disabled
+            disabled={!hasImage}
+            onClick={onExportGb7}
           >
             Export GB7
           </Button>

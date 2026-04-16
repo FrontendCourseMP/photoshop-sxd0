@@ -6,6 +6,7 @@ import CanvasViewport from "../components/CanvasViewport";
 import StatusBar from "../components/StatusBar";
 import useImageDocument from "../hooks/useImageDocument";
 import { decodeGB7 } from "../utils/decodeGB7";
+import { exportImageAsGB7 } from "../utils/encodeGB7";
 import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
 import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
@@ -63,6 +64,22 @@ function App() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to export JPG image.";
+
+      setErrorMessage(message);
+    }
+  };
+
+  const handleExportGb7 = async () => {
+    if (!document) {
+      return;
+    }
+
+    try {
+      await exportImageAsGB7(document.imageData, document.fileName);
+      setErrorMessage("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export GB7 image.";
 
       setErrorMessage(message);
     }
@@ -133,6 +150,7 @@ function App() {
         onOpen={handleOpen}
         onExportPng={handleExportPng}
         onExportJpg={handleExportJpg}
+        onExportGb7={handleExportGb7}
         onClear={handleClear}
       />
 
