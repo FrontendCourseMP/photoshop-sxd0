@@ -6,6 +6,7 @@ import CanvasViewport from "../components/CanvasViewport";
 import StatusBar from "../components/StatusBar";
 import useImageDocument from "../hooks/useImageDocument";
 import { decodeGB7 } from "../utils/decodeGB7";
+import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
 import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
 import "../App.css";
@@ -33,6 +34,38 @@ function App() {
 
   const handleOpen = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleExportPng = async () => {
+    if (!document) {
+      return;
+    }
+
+    try {
+      await exportImageAsPng(document.imageData, document.fileName);
+      setErrorMessage("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export PNG image.";
+
+      setErrorMessage(message);
+    }
+  };
+
+  const handleExportJpg = async () => {
+    if (!document) {
+      return;
+    }
+
+    try {
+      await exportImageAsJpg(document.imageData, document.fileName);
+      setErrorMessage("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export JPG image.";
+
+      setErrorMessage(message);
+    }
   };
 
   const handleClear = () => {
@@ -98,6 +131,8 @@ function App() {
       <Toolbar
         hasImage={hasImage}
         onOpen={handleOpen}
+        onExportPng={handleExportPng}
+        onExportJpg={handleExportJpg}
         onClear={handleClear}
       />
 

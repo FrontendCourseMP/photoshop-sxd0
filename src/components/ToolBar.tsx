@@ -12,10 +12,18 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 interface ToolbarProps {
   hasImage: boolean;
   onOpen: () => void;
+  onExportPng: () => void;
+  onExportJpg: () => void;
   onClear: () => void;
 }
 
-function Toolbar({ hasImage, onOpen, onClear }: ToolbarProps) {
+function Toolbar({
+  hasImage,
+  onOpen,
+  onExportPng,
+  onExportJpg,
+  onClear,
+}: ToolbarProps) {
   return (
     <AppBar position="static" elevation={0} color="transparent">
       <MuiToolbar
@@ -51,6 +59,7 @@ function Toolbar({ hasImage, onOpen, onClear }: ToolbarProps) {
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
             disabled={!hasImage}
+            onClick={onExportPng}
           >
             Export PNG
           </Button>
@@ -59,6 +68,7 @@ function Toolbar({ hasImage, onOpen, onClear }: ToolbarProps) {
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
             disabled={!hasImage}
+            onClick={onExportJpg}
           >
             Export JPG
           </Button>
@@ -66,7 +76,7 @@ function Toolbar({ hasImage, onOpen, onClear }: ToolbarProps) {
           <Button
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
-            disabled={!hasImage}
+            disabled
           >
             Export GB7
           </Button>
