@@ -1,6 +1,5 @@
 import {
   AppBar,
-  Box,
   Button,
   Stack,
   Toolbar as MuiToolbar,
@@ -10,7 +9,13 @@ import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternate
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 
-function Toolbar() {
+interface ToolbarProps {
+  hasImage: boolean;
+  onOpen: () => void;
+  onClear: () => void;
+}
+
+function Toolbar({ hasImage, onOpen, onClear }: ToolbarProps) {
   return (
     <AppBar position="static" elevation={0} color="transparent">
       <MuiToolbar
@@ -27,11 +32,17 @@ function Toolbar() {
           Image Processing Lab
         </Typography>
 
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap" }}
+        >
           <Button
             variant="contained"
             startIcon={<AddPhotoAlternateOutlinedIcon />}
             disableElevation
+            onClick={onOpen}
           >
             Open
           </Button>
@@ -39,7 +50,7 @@ function Toolbar() {
           <Button
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
-            disabled
+            disabled={!hasImage}
           >
             Export PNG
           </Button>
@@ -47,7 +58,7 @@ function Toolbar() {
           <Button
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
-            disabled
+            disabled={!hasImage}
           >
             Export JPG
           </Button>
@@ -55,7 +66,7 @@ function Toolbar() {
           <Button
             variant="outlined"
             startIcon={<DownloadOutlinedIcon />}
-            disabled
+            disabled={!hasImage}
           >
             Export GB7
           </Button>
@@ -64,7 +75,8 @@ function Toolbar() {
             variant="outlined"
             color="error"
             startIcon={<DeleteOutlineOutlinedIcon />}
-            disabled
+            disabled={!hasImage}
+            onClick={onClear}
           >
             Clear
           </Button>

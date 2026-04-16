@@ -1,6 +1,12 @@
+import type { RefObject } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 
-function CanvasViewport() {
+interface CanvasViewportProps {
+  hasImage: boolean;
+  canvasRef: RefObject<HTMLCanvasElement | null>;
+}
+
+function CanvasViewport({ hasImage, canvasRef }: CanvasViewportProps) {
   return (
     <Box className="app-workspace">
       <Paper
@@ -29,20 +35,34 @@ function CanvasViewport() {
             alignItems: "center",
             justifyContent: "center",
             borderRadius: 1,
+            overflow: "auto",
+            padding: 2,
           }}
         >
-          <Typography
-            variant="body1"
-            sx={{
-              color: "#bdbdbd",
-              textAlign: "center",
-              maxWidth: 360,
-              lineHeight: 1.6,
-            }}
-          >
-            No image loaded yet. Use the Open button to load PNG, JPG or GB7
-            image and display it on the canvas.
-          </Typography>
+          {hasImage ? (
+            <canvas
+              ref={canvasRef}
+              style={{
+                display: "block",
+                maxWidth: "100%",
+                height: "auto",
+                imageRendering: "auto",
+              }}
+            />
+          ) : (
+            <Typography
+              variant="body1"
+              sx={{
+                color: "#bdbdbd",
+                textAlign: "center",
+                maxWidth: 360,
+                lineHeight: 1.6,
+              }}
+            >
+              No image loaded yet. Use the Open button to load PNG, JPG or GB7
+              image and display it on the canvas.
+            </Typography>
+          )}
         </Box>
       </Paper>
     </Box>
