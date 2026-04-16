@@ -5,9 +5,14 @@ import Toolbar from "../components/Toolbar";
 import CanvasViewport from "../components/CanvasViewport";
 import StatusBar from "../components/StatusBar";
 import useImageDocument from "../hooks/useImageDocument";
+import { decodeGB7 } from "../utils/decodeGB7";
 import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
 import "../App.css";
+
+function getFileExtension(fileName: string): string {
+  return fileName.split(".").pop()?.toLowerCase() ?? "";
+}
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -58,7 +63,13 @@ function App() {
     }
 
     try {
-      const loadedDocument = await loadStandardImage(selectedFile);
+      const extension = getFileExtension(selectedFile.name);
+
+      const loadedDocument =
+        extension === "gb7"
+          ? decodeGB7(await selectedFile.arrayBuffer(), selectedFile.name)
+          : await loadStandardImage(selectedFile);
+
       setDocument(loadedDocument);
       setErrorMessage("");
     } catch (error) {
@@ -79,7 +90,7 @@ function App() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+        accept=".png,.jpg,.jpeg,.gb7,image/png,image/jpeg"
         hidden
         onChange={handleFileChange}
       />
