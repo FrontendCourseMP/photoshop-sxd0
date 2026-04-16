@@ -4,9 +4,14 @@ import { Box, Paper, Typography } from "@mui/material";
 interface CanvasViewportProps {
   hasImage: boolean;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  errorMessage: string;
 }
 
-function CanvasViewport({ hasImage, canvasRef }: CanvasViewportProps) {
+function CanvasViewport({
+  hasImage,
+  canvasRef,
+  errorMessage,
+}: CanvasViewportProps) {
   return (
     <Box className="app-workspace">
       <Paper
@@ -53,14 +58,14 @@ function CanvasViewport({ hasImage, canvasRef }: CanvasViewportProps) {
             <Typography
               variant="body1"
               sx={{
-                color: "#bdbdbd",
+                color: errorMessage ? "#ff8a80" : "#bdbdbd",
                 textAlign: "center",
-                maxWidth: 360,
+                maxWidth: 420,
                 lineHeight: 1.6,
               }}
             >
-              No image loaded yet. Use the Open button to load PNG, JPG or GB7
-              image and display it on the canvas.
+              {errorMessage ||
+                "No image loaded yet. Use the Open button to load PNG, JPG or GB7 image and display it on the canvas."}
             </Typography>
           )}
         </Box>
