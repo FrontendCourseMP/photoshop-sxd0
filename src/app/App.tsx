@@ -93,7 +93,12 @@ function App() {
       const context = canvasRef.current.getContext("2d");
 
       if (context) {
-        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        context.clearRect(
+          0,
+          0,
+          canvasRef.current.width,
+          canvasRef.current.height
+        );
       }
 
       canvasRef.current.width = 0;
@@ -158,9 +163,11 @@ function App() {
         hasImage={hasImage}
         canvasRef={canvasRef}
         errorMessage={errorMessage}
+        fileName={document?.fileName ?? ""}
       />
 
       <StatusBar
+        fileName={document?.fileName ?? ""}
         format={metadata.format}
         width={metadata.width}
         height={metadata.height}

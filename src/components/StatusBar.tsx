@@ -6,6 +6,7 @@ interface StatusBarProps {
   height: number;
   colorDepth: string;
   hasMask: boolean;
+  fileName: string;
 }
 
 function StatusBar({
@@ -14,6 +15,7 @@ function StatusBar({
   height,
   colorDepth,
   hasMask,
+  fileName,
 }: StatusBarProps) {
   return (
     <Box className="app-statusbar">
@@ -24,11 +26,14 @@ function StatusBar({
           width: "100%",
           alignItems: "center",
           color: "#d4d4d4",
-          fontSize: 13,
           overflowX: "auto",
           whiteSpace: "nowrap",
         }}
       >
+        <Typography variant="body2" sx={{ color: "#9cdcfe", fontWeight: 500 }}>
+          Status
+        </Typography>
+        <Typography variant="body2">File: {fileName || "—"}</Typography>
         <Typography variant="body2">Format: {format}</Typography>
         <Typography variant="body2">Width: {width}</Typography>
         <Typography variant="body2">Height: {height}</Typography>
