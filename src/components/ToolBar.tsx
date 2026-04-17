@@ -8,22 +8,28 @@ import {
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import ColorizeOutlinedIcon from "@mui/icons-material/ColorizeOutlined";
+import type { ToolMode } from "../types/image";
 
 interface ToolbarProps {
   hasImage: boolean;
+  toolMode: ToolMode;
   onOpen: () => void;
   onExportPng: () => void;
   onExportJpg: () => void;
   onExportGb7: () => void;
+  onToggleEyedropper: () => void;
   onClear: () => void;
 }
 
 function Toolbar({
   hasImage,
+  toolMode,
   onOpen,
   onExportPng,
   onExportJpg,
   onExportGb7,
+  onToggleEyedropper,
   onClear,
 }: ToolbarProps) {
   return (
@@ -55,6 +61,16 @@ function Toolbar({
             onClick={onOpen}
           >
             Open
+          </Button>
+
+          <Button
+            variant={toolMode === "eyedropper" ? "contained" : "outlined"}
+            color={toolMode === "eyedropper" ? "secondary" : "inherit"}
+            startIcon={<ColorizeOutlinedIcon />}
+            disabled={!hasImage}
+            onClick={onToggleEyedropper}
+          >
+            Eyedropper
           </Button>
 
           <Button

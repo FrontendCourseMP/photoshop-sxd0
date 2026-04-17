@@ -9,3 +9,26 @@ export interface ImageDocument {
   hasMask: boolean;
   imageData: ImageData;
 }
+
+export interface ChannelVisibility {
+  red: boolean;
+  green: boolean;
+  blue: boolean;
+  alpha: boolean;
+}
+
+export type ToolMode = "none" | "eyedropper";
+
+export interface SampledPixelInfo {
+  x: number;
+  y: number;
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+  lab: {
+    l: number;
+    a: number;
+    b: number;
+  };
+}

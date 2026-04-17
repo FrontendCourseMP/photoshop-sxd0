@@ -1,11 +1,13 @@
 import type { RefObject } from "react";
 import { Box, Paper, Typography } from "@mui/material";
+import type { ToolMode } from "../types/image";
 
 interface CanvasViewportProps {
   hasImage: boolean;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   errorMessage: string;
   fileName: string;
+  toolMode: ToolMode;
 }
 
 function CanvasViewport({
@@ -13,6 +15,7 @@ function CanvasViewport({
   canvasRef,
   errorMessage,
   fileName,
+  toolMode,
 }: CanvasViewportProps) {
   return (
     <Box className="app-workspace">
@@ -90,6 +93,7 @@ function CanvasViewport({
                   maxWidth: "100%",
                   height: "auto",
                   boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
+                  cursor: toolMode === "eyedropper" ? "crosshair" : "default",
                 }}
               />
             ) : (

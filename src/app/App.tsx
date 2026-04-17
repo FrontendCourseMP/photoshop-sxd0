@@ -3,8 +3,14 @@ import type { ChangeEvent } from "react";
 import { Box } from "@mui/material";
 import Toolbar from "../components/Toolbar";
 import CanvasViewport from "../components/CanvasViewport";
+import Sidebar from "../components/Sidebar";
 import StatusBar from "../components/StatusBar";
 import useImageDocument from "../hooks/useImageDocument";
+import type {
+  ChannelVisibility,
+  SampledPixelInfo,
+  ToolMode,
+} from "../types/image";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
 import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
@@ -16,6 +22,13 @@ function getFileExtension(fileName: string): string {
   return fileName.split(".").pop()?.toLowerCase() ?? "";
 }
 
+const defaultChannels: ChannelVisibility = {
+  red: true,
+  green: true,
+  blue: true,
+  alpha: true,
+};
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -24,6 +37,9 @@ function App() {
     useImageDocument();
 
   const [errorMessage, setErrorMessage] = useState("");
+  const [toolMode, setToolMode] = useState<ToolMode>("none");
+  const [channels] = useState<ChannelVisibility>(defaultChannels);
+  const [sampledPixel] = useState<SampledPixelInfo | null>(null);
 
   useEffect(() => {
     if (!document || !canvasRef.current) {
@@ -35,6 +51,12 @@ function App() {
 
   const handleOpen = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleToggleEyedropper = () => {
+    setToolMode((previous) =>
+      previous === "eyedropper" ? "none" : "eyedropper"
+    );
   };
 
   const handleExportPng = async () => {
@@ -88,6 +110,7 @@ function App() {
   const handleClear = () => {
     clearDocument();
     setErrorMessage("");
+    setToolMode("none");
 
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -127,6 +150,7 @@ function App() {
 
       setDocument(loadedDocument);
       setErrorMessage("");
+      setToolMode("none");
     } catch (error) {
       const message =
         error instanceof Error
@@ -152,19 +176,30 @@ function App() {
 
       <Toolbar
         hasImage={hasImage}
+        toolMode={toolMode}
         onOpen={handleOpen}
         onExportPng={handleExportPng}
         onExportJpg={handleExportJpg}
         onExportGb7={handleExportGb7}
+        onToggleEyedropper={handleToggleEyedropper}
         onClear={handleClear}
       />
 
-      <CanvasViewport
-        hasImage={hasImage}
-        canvasRef={canvasRef}
-        errorMessage={errorMessage}
-        fileName={document?.fileName ?? ""}
-      />
+      <Box className="app-main">
+        <CanvasViewport
+          hasImage={hasImage}
+          canvasRef={canvasRef}
+          errorMessage={errorMessage}
+          fileName={document?.fileName ?? ""}
+          toolMode={toolMode}
+        />
+
+        <Sidebar
+          channels={channels}
+          toolMode={toolMode}
+          sampledPixel={sampledPixel}
+        />
+      </Box>
 
       <StatusBar
         fileName={document?.fileName ?? ""}

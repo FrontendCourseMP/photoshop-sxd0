@@ -14,6 +14,16 @@
   padding: 16px;
 }
 
+.app-main {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  padding: 16px;
+  overflow: hidden;
+  background-color: #2d2d30;
+}
+
 .app-statusbar {
   display: flex;
   align-items: center;
