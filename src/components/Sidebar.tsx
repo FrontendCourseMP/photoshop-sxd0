@@ -18,9 +18,15 @@ interface SidebarProps {
   channels: ChannelVisibility;
   toolMode: ToolMode;
   sampledPixel: SampledPixelInfo | null;
+  onToggleChannel: (channel: keyof ChannelVisibility) => void;
 }
 
-function Sidebar({ channels, toolMode, sampledPixel }: SidebarProps) {
+function Sidebar({
+  channels,
+  toolMode,
+  sampledPixel,
+  onToggleChannel,
+}: SidebarProps) {
   return (
     <Paper
       elevation={0}
@@ -50,28 +56,40 @@ function Sidebar({ channels, toolMode, sampledPixel }: SidebarProps) {
         </Box>
 
         <List disablePadding>
-          <ListItemButton selected={channels.red}>
+          <ListItemButton
+            selected={channels.red}
+            onClick={() => onToggleChannel("red")}
+          >
             <ListItemText
               primary="Red channel"
               secondary={channels.red ? "Enabled" : "Disabled"}
             />
           </ListItemButton>
 
-          <ListItemButton selected={channels.green}>
+          <ListItemButton
+            selected={channels.green}
+            onClick={() => onToggleChannel("green")}
+          >
             <ListItemText
               primary="Green channel"
               secondary={channels.green ? "Enabled" : "Disabled"}
             />
           </ListItemButton>
 
-          <ListItemButton selected={channels.blue}>
+          <ListItemButton
+            selected={channels.blue}
+            onClick={() => onToggleChannel("blue")}
+          >
             <ListItemText
               primary="Blue channel"
               secondary={channels.blue ? "Enabled" : "Disabled"}
             />
           </ListItemButton>
 
-          <ListItemButton selected={channels.alpha}>
+          <ListItemButton
+            selected={channels.alpha}
+            onClick={() => onToggleChannel("alpha")}
+          >
             <ListItemText
               primary="Alpha channel"
               secondary={channels.alpha ? "Enabled" : "Disabled"}

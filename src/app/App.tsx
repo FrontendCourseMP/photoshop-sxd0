@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Box } from "@mui/material";
 import Toolbar from "../components/Toolbar";
@@ -11,6 +11,7 @@ import type {
   SampledPixelInfo,
   ToolMode,
 } from "../types/image";
+import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
 import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
@@ -38,16 +39,24 @@ function App() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [toolMode, setToolMode] = useState<ToolMode>("none");
-  const [channels] = useState<ChannelVisibility>(defaultChannels);
+  const [channels, setChannels] = useState<ChannelVisibility>(defaultChannels);
   const [sampledPixel] = useState<SampledPixelInfo | null>(null);
 
+  const renderedImageData = useMemo(() => {
+    if (!document) {
+      return null;
+    }
+
+    return applyChannelVisibility(document.imageData, channels);
+  }, [document, channels]);
+
   useEffect(() => {
-    if (!document || !canvasRef.current) {
+    if (!renderedImageData || !canvasRef.current) {
       return;
     }
 
-    renderToCanvas(canvasRef.current, document.imageData);
-  }, [document]);
+    renderToCanvas(canvasRef.current, renderedImageData);
+  }, [renderedImageData]);
 
   const handleOpen = () => {
     fileInputRef.current?.click();
@@ -57,6 +66,13 @@ function App() {
     setToolMode((previous) =>
       previous === "eyedropper" ? "none" : "eyedropper"
     );
+  };
+
+  const handleToggleChannel = (channel: keyof ChannelVisibility) => {
+    setChannels((previous) => ({
+      ...previous,
+      [channel]: !previous[channel],
+    }));
   };
 
   const handleExportPng = async () => {
@@ -111,6 +127,7 @@ function App() {
     clearDocument();
     setErrorMessage("");
     setToolMode("none");
+    setChannels(defaultChannels);
 
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -151,6 +168,7 @@ function App() {
       setDocument(loadedDocument);
       setErrorMessage("");
       setToolMode("none");
+      setChannels(defaultChannels);
     } catch (error) {
       const message =
         error instanceof Error
@@ -198,6 +216,7 @@ function App() {
           channels={channels}
           toolMode={toolMode}
           sampledPixel={sampledPixel}
+          onToggleChannel={handleToggleChannel}
         />
       </Box>
 
