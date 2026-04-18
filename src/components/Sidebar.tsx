@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Box,
   Divider,
@@ -10,23 +11,70 @@ import {
 } from "@mui/material";
 import type {
   ChannelVisibility,
+  ImageDocument,
   SampledPixelInfo,
   ToolMode,
 } from "../types/image";
+import {
+  createChannelPreviewUrl,
+  getVisibleChannelKeys,
+  type PreviewChannel,
+} from "../utils/channelPreview";
 
 interface SidebarProps {
+  document: ImageDocument | null;
   channels: ChannelVisibility;
   toolMode: ToolMode;
   sampledPixel: SampledPixelInfo | null;
-  onToggleChannel: (channel: keyof ChannelVisibility) => void;
+  onToggleChannel: (channel: PreviewChannel | "grayscale") => void;
+}
+
+function getChannelLabel(channel: PreviewChannel): string {
+  switch (channel) {
+    case "grayscale":
+      return "Grayscale";
+    case "red":
+      return "Red channel";
+    case "green":
+      return "Green channel";
+    case "blue":
+      return "Blue channel";
+    case "alpha":
+      return "Alpha channel";
+  }
+}
+
+function isChannelSelected(
+  channels: ChannelVisibility,
+  channel: PreviewChannel
+): boolean {
+  if (channel === "grayscale") {
+    return channels.red && channels.green && channels.blue;
+  }
+
+  return channels[channel];
 }
 
 function Sidebar({
+  document,
   channels,
   toolMode,
   sampledPixel,
   onToggleChannel,
 }: SidebarProps) {
+  const channelItems = useMemo(() => {
+    if (!document) {
+      return [];
+    }
+
+    return getVisibleChannelKeys(document).map((channel) => ({
+      key: channel,
+      label: getChannelLabel(channel),
+      selected: isChannelSelected(channels, channel),
+      previewUrl: createChannelPreviewUrl(document.imageData, channel),
+    }));
+  }, [document, channels]);
+
   return (
     <Paper
       elevation={0}
@@ -55,47 +103,50 @@ function Sidebar({
           </Typography>
         </Box>
 
-        <List disablePadding>
-          <ListItemButton
-            selected={channels.red}
-            onClick={() => onToggleChannel("red")}
-          >
-            <ListItemText
-              primary="Red channel"
-              secondary={channels.red ? "Enabled" : "Disabled"}
-            />
-          </ListItemButton>
+        {document ? (
+          <List disablePadding>
+            {channelItems.map((item) => (
+              <ListItemButton
+                key={item.key}
+                selected={item.selected}
+                onClick={() =>
+                  onToggleChannel(
+                    item.key === "grayscale" ? "grayscale" : item.key
+                  )
+                }
+                sx={{
+                  alignItems: "center",
+                  gap: 1.5,
+                  py: 1,
+                }}
+              >
+                <Box
+                  component="img"
+                  src={item.previewUrl}
+                  alt={item.label}
+                  sx={{
+                    width: 88,
+                    height: 64,
+                    objectFit: "cover",
+                    border: "1px solid #444",
+                    borderRadius: 1,
+                    backgroundColor: "#111",
+                    flexShrink: 0,
+                  }}
+                />
 
-          <ListItemButton
-            selected={channels.green}
-            onClick={() => onToggleChannel("green")}
-          >
-            <ListItemText
-              primary="Green channel"
-              secondary={channels.green ? "Enabled" : "Disabled"}
-            />
-          </ListItemButton>
-
-          <ListItemButton
-            selected={channels.blue}
-            onClick={() => onToggleChannel("blue")}
-          >
-            <ListItemText
-              primary="Blue channel"
-              secondary={channels.blue ? "Enabled" : "Disabled"}
-            />
-          </ListItemButton>
-
-          <ListItemButton
-            selected={channels.alpha}
-            onClick={() => onToggleChannel("alpha")}
-          >
-            <ListItemText
-              primary="Alpha channel"
-              secondary={channels.alpha ? "Enabled" : "Disabled"}
-            />
-          </ListItemButton>
-        </List>
+                <ListItemText
+                  primary={item.label}
+                  secondary={item.selected ? "Enabled" : "Disabled"}
+                />
+              </ListItemButton>
+            ))}
+          </List>
+        ) : (
+          <Typography variant="body2" sx={{ p: 2, color: "#a8a8a8" }}>
+            Load an image to display channel previews.
+          </Typography>
+        )}
       </Box>
 
       <Divider />

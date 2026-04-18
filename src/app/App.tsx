@@ -68,7 +68,24 @@ function App() {
     );
   };
 
-  const handleToggleChannel = (channel: keyof ChannelVisibility) => {
+  const handleToggleChannel = (
+    channel: keyof ChannelVisibility | "grayscale"
+  ) => {
+    if (channel === "grayscale") {
+      setChannels((previous) => {
+        const nextValue = !(previous.red && previous.green && previous.blue);
+
+        return {
+          ...previous,
+          red: nextValue,
+          green: nextValue,
+          blue: nextValue,
+        };
+      });
+
+      return;
+    }
+
     setChannels((previous) => ({
       ...previous,
       [channel]: !previous[channel],
@@ -213,6 +230,7 @@ function App() {
         />
 
         <Sidebar
+          document={document}
           channels={channels}
           toolMode={toolMode}
           sampledPixel={sampledPixel}

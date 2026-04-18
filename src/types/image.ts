@@ -1,4 +1,5 @@
 export type SupportedImageFormat = "png" | "jpg" | "jpeg" | "gb7";
+export type ChannelModel = "grayscale" | "rgb";
 
 export interface ImageDocument {
   fileName: string;
@@ -7,6 +8,7 @@ export interface ImageDocument {
   height: number;
   colorDepth: string;
   hasMask: boolean;
+  channelModel: ChannelModel;
   imageData: ImageData;
 }
 

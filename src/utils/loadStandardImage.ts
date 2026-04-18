@@ -1,4 +1,5 @@
 import type { ImageDocument, SupportedImageFormat } from "../types/image";
+import { detectChannelModel, imageDataHasAlpha } from "./analyzeImageData";
 
 function getFormatFromFile(file: File): SupportedImageFormat {
   const extension = file.name.split(".").pop()?.toLowerCase();
@@ -26,8 +27,16 @@ function loadHtmlImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function getColorDepth(format: SupportedImageFormat): string {
-  if (format === "png") {
+function getColorDepth(
+  format: SupportedImageFormat,
+  hasAlpha: boolean,
+  channelModel: "grayscale" | "rgb"
+): string {
+  if (channelModel === "grayscale") {
+    return hasAlpha ? "8-bit grayscale + alpha" : "8-bit grayscale";
+  }
+
+  if (format === "png" && hasAlpha) {
     return "32-bit RGBA";
   }
 
@@ -53,13 +62,17 @@ async function createImageDataFromFile(file: File): Promise<ImageDocument> {
     context.drawImage(image, 0, 0);
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
 
+    const hasAlpha = imageDataHasAlpha(imageData);
+    const channelModel = detectChannelModel(imageData);
+
     return {
       fileName: file.name,
       format,
       width: canvas.width,
       height: canvas.height,
-      colorDepth: getColorDepth(format),
-      hasMask: false,
+      colorDepth: getColorDepth(format, hasAlpha, channelModel),
+      hasMask: hasAlpha,
+      channelModel,
       imageData,
     };
   } finally {
