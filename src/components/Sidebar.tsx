@@ -26,7 +26,7 @@ interface SidebarProps {
   channels: ChannelVisibility;
   toolMode: ToolMode;
   sampledPixel: SampledPixelInfo | null;
-  onToggleChannel: (channel: PreviewChannel | "grayscale") => void;
+  onToggleChannel: (channel: PreviewChannel) => void;
 }
 
 function getChannelLabel(channel: PreviewChannel): string {
@@ -44,6 +44,21 @@ function getChannelLabel(channel: PreviewChannel): string {
   }
 }
 
+function getChannelDescription(channel: PreviewChannel): string {
+  switch (channel) {
+    case "grayscale":
+      return "Luminance preview";
+    case "red":
+      return "Red component";
+    case "green":
+      return "Green component";
+    case "blue":
+      return "Blue component";
+    case "alpha":
+      return "Transparency mask";
+  }
+}
+
 function isChannelSelected(
   channels: ChannelVisibility,
   channel: PreviewChannel
@@ -53,6 +68,21 @@ function isChannelSelected(
   }
 
   return channels[channel];
+}
+
+function getSelectionColor(channel: PreviewChannel): string {
+  switch (channel) {
+    case "grayscale":
+      return "#9e9e9e";
+    case "red":
+      return "#ef5350";
+    case "green":
+      return "#66bb6a";
+    case "blue":
+      return "#42a5f5";
+    case "alpha":
+      return "#bdbdbd";
+  }
 }
 
 function Sidebar({
@@ -70,8 +100,10 @@ function Sidebar({
     return getVisibleChannelKeys(document).map((channel) => ({
       key: channel,
       label: getChannelLabel(channel),
+      description: getChannelDescription(channel),
       selected: isChannelSelected(channels, channel),
       previewUrl: createChannelPreviewUrl(document.imageData, channel),
+      accent: getSelectionColor(channel),
     }));
   }, [document, channels]);
 
@@ -109,15 +141,17 @@ function Sidebar({
               <ListItemButton
                 key={item.key}
                 selected={item.selected}
-                onClick={() =>
-                  onToggleChannel(
-                    item.key === "grayscale" ? "grayscale" : item.key
-                  )
-                }
+                onClick={() => onToggleChannel(item.key)}
                 sx={{
                   alignItems: "center",
                   gap: 1.5,
                   py: 1,
+                  borderLeft: `3px solid ${
+                    item.selected ? item.accent : "transparent"
+                  }`,
+                  backgroundColor: item.selected
+                    ? "rgba(255,255,255,0.04)"
+                    : "transparent",
                 }}
               >
                 <Box
@@ -128,17 +162,33 @@ function Sidebar({
                     width: 88,
                     height: 64,
                     objectFit: "cover",
-                    border: "1px solid #444",
+                    border: `1px solid ${
+                      item.selected ? item.accent : "#444"
+                    }`,
                     borderRadius: 1,
                     backgroundColor: "#111",
                     flexShrink: 0,
                   }}
                 />
 
-                <ListItemText
-                  primary={item.label}
-                  secondary={item.selected ? "Enabled" : "Disabled"}
-                />
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <ListItemText
+                    primary={item.label}
+                    secondary={item.description}
+                    sx={{ m: 0 }}
+                  />
+
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: item.selected ? "#c8e6c9" : "#9e9e9e",
+                      display: "block",
+                      mt: 0.25,
+                    }}
+                  >
+                    {item.selected ? "Enabled" : "Disabled"}
+                  </Typography>
+                </Box>
               </ListItemButton>
             ))}
           </List>
@@ -170,6 +220,12 @@ function Sidebar({
             Tool mode: {toolMode === "eyedropper" ? "Eyedropper" : "None"}
           </Typography>
 
+          {toolMode === "eyedropper" && !sampledPixel && (
+            <Typography variant="body2" sx={{ color: "#d1c4e9" }}>
+              Click any point on the image to sample color values.
+            </Typography>
+          )}
+
           {sampledPixel ? (
             <>
               <Typography variant="body2">
@@ -185,11 +241,11 @@ function Sidebar({
                 {sampledPixel.lab.b.toFixed(2)}
               </Typography>
             </>
-          ) : (
+          ) : toolMode !== "eyedropper" ? (
             <Typography variant="body2" sx={{ color: "#a8a8a8" }}>
-              No pixel selected yet.
+              Activate the eyedropper to inspect a pixel.
             </Typography>
-          )}
+          ) : null}
         </Stack>
       </Box>
     </Paper>

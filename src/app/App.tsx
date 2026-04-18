@@ -57,6 +57,46 @@ function App() {
     return applyChannelVisibility(document.imageData, channels);
   }, [document, channels]);
 
+  const channelsSummary = useMemo(() => {
+    if (!document) {
+      return "—";
+    }
+
+    if (document.channelModel === "grayscale") {
+      const parts: string[] = [];
+
+      if (channels.red && channels.green && channels.blue) {
+        parts.push("Gray");
+      }
+
+      if (document.hasMask && channels.alpha) {
+        parts.push("Alpha");
+      }
+
+      return parts.length > 0 ? parts.join(", ") : "none";
+    }
+
+    const parts: string[] = [];
+
+    if (channels.red) {
+      parts.push("R");
+    }
+
+    if (channels.green) {
+      parts.push("G");
+    }
+
+    if (channels.blue) {
+      parts.push("B");
+    }
+
+    if (document.hasMask && channels.alpha) {
+      parts.push("A");
+    }
+
+    return parts.length > 0 ? parts.join(", ") : "none";
+  }, [document, channels]);
+
   useEffect(() => {
     if (!renderedImageData || !canvasRef.current) {
       return;
@@ -101,9 +141,7 @@ function App() {
     }));
   };
 
-  const handleCanvasClick = (
-    event: ReactMouseEvent<HTMLCanvasElement>
-  ) => {
+  const handleCanvasClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
     if (toolMode !== "eyedropper" || !renderedImageData) {
       return;
     }
@@ -299,6 +337,8 @@ function App() {
         height={metadata.height}
         colorDepth={metadata.colorDepth}
         hasMask={metadata.hasMask}
+        toolMode={toolMode === "eyedropper" ? "Eyedropper" : "None"}
+        channelsSummary={channelsSummary}
       />
     </Box>
   );

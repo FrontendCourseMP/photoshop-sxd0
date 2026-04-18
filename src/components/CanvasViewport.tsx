@@ -1,7 +1,4 @@
-import type {
-  MouseEvent as ReactMouseEvent,
-  RefObject,
-} from "react";
+import type { MouseEvent as ReactMouseEvent, RefObject } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import type { ToolMode } from "../types/image";
 
@@ -22,6 +19,8 @@ function CanvasViewport({
   toolMode,
   onCanvasClick,
 }: CanvasViewportProps) {
+  const eyedropperActive = hasImage && toolMode === "eyedropper";
+
   return (
     <Box className="app-workspace">
       <Paper
@@ -72,8 +71,30 @@ function CanvasViewport({
             minHeight: 0,
             overflow: "auto",
             p: 2,
+            position: "relative",
           }}
         >
+          {eyedropperActive && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 16,
+                left: 16,
+                zIndex: 1,
+                px: 1.25,
+                py: 0.5,
+                border: "1px solid #7e57c2",
+                borderRadius: 1,
+                backgroundColor: "rgba(30, 30, 30, 0.92)",
+                color: "#d1c4e9",
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              Eyedropper active — click on image
+            </Box>
+          )}
+
           <Box
             sx={{
               minWidth: "100%",
@@ -98,7 +119,9 @@ function CanvasViewport({
                   display: "block",
                   maxWidth: "100%",
                   height: "auto",
-                  boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
+                  boxShadow: eyedropperActive
+                    ? "0 0 0 1px rgba(126, 87, 194, 0.55)"
+                    : "0 0 0 1px rgba(255,255,255,0.06)",
                   cursor: toolMode === "eyedropper" ? "crosshair" : "default",
                 }}
               />

@@ -7,6 +7,8 @@ interface StatusBarProps {
   colorDepth: string;
   hasMask: boolean;
   fileName: string;
+  toolMode: string;
+  channelsSummary: string;
 }
 
 function StatusBar({
@@ -16,6 +18,8 @@ function StatusBar({
   colorDepth,
   hasMask,
   fileName,
+  toolMode,
+  channelsSummary,
 }: StatusBarProps) {
   return (
     <Box className="app-statusbar">
@@ -41,6 +45,8 @@ function StatusBar({
         <Typography variant="body2">
           Mask: {hasMask ? "present" : "absent"}
         </Typography>
+        <Typography variant="body2">Tool: {toolMode}</Typography>
+        <Typography variant="body2">Visible channels: {channelsSummary}</Typography>
       </Stack>
     </Box>
   );
