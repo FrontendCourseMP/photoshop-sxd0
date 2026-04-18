@@ -1,4 +1,7 @@
-import type { RefObject } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  RefObject,
+} from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import type { ToolMode } from "../types/image";
 
@@ -8,6 +11,7 @@ interface CanvasViewportProps {
   errorMessage: string;
   fileName: string;
   toolMode: ToolMode;
+  onCanvasClick: (event: ReactMouseEvent<HTMLCanvasElement>) => void;
 }
 
 function CanvasViewport({
@@ -16,6 +20,7 @@ function CanvasViewport({
   errorMessage,
   fileName,
   toolMode,
+  onCanvasClick,
 }: CanvasViewportProps) {
   return (
     <Box className="app-workspace">
@@ -88,6 +93,7 @@ function CanvasViewport({
             {hasImage ? (
               <canvas
                 ref={canvasRef}
+                onClick={onCanvasClick}
                 style={{
                   display: "block",
                   maxWidth: "100%",

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type {
+  ChangeEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react";
 import { Box } from "@mui/material";
 import Toolbar from "../components/Toolbar";
 import CanvasViewport from "../components/CanvasViewport";
@@ -15,8 +18,10 @@ import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
 import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
+import { getCanvasPixelCoordinates } from "../utils/getCanvasPixelCoordinates";
 import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
+import { rgbToLab } from "../utils/rgbToLab";
 import "../App.css";
 
 function getFileExtension(fileName: string): string {
@@ -40,7 +45,9 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
   const [toolMode, setToolMode] = useState<ToolMode>("none");
   const [channels, setChannels] = useState<ChannelVisibility>(defaultChannels);
-  const [sampledPixel] = useState<SampledPixelInfo | null>(null);
+  const [sampledPixel, setSampledPixel] = useState<SampledPixelInfo | null>(
+    null
+  );
 
   const renderedImageData = useMemo(() => {
     if (!document) {
@@ -71,6 +78,8 @@ function App() {
   const handleToggleChannel = (
     channel: keyof ChannelVisibility | "grayscale"
   ) => {
+    setSampledPixel(null);
+
     if (channel === "grayscale") {
       setChannels((previous) => {
         const nextValue = !(previous.red && previous.green && previous.blue);
@@ -90,6 +99,48 @@ function App() {
       ...previous,
       [channel]: !previous[channel],
     }));
+  };
+
+  const handleCanvasClick = (
+    event: ReactMouseEvent<HTMLCanvasElement>
+  ) => {
+    if (toolMode !== "eyedropper" || !renderedImageData) {
+      return;
+    }
+
+    try {
+      const { x, y } = getCanvasPixelCoordinates(
+        event.currentTarget,
+        event.clientX,
+        event.clientY
+      );
+
+      const pixelIndex = (y * renderedImageData.width + x) * 4;
+      const red = renderedImageData.data[pixelIndex];
+      const green = renderedImageData.data[pixelIndex + 1];
+      const blue = renderedImageData.data[pixelIndex + 2];
+      const alpha = renderedImageData.data[pixelIndex + 3];
+      const lab = rgbToLab(red, green, blue);
+
+      setSampledPixel({
+        x,
+        y,
+        r: red,
+        g: green,
+        b: blue,
+        a: alpha,
+        lab,
+      });
+
+      setErrorMessage("");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to sample pixel from canvas.";
+
+      setErrorMessage(message);
+    }
   };
 
   const handleExportPng = async () => {
@@ -145,6 +196,7 @@ function App() {
     setErrorMessage("");
     setToolMode("none");
     setChannels(defaultChannels);
+    setSampledPixel(null);
 
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -186,6 +238,7 @@ function App() {
       setErrorMessage("");
       setToolMode("none");
       setChannels(defaultChannels);
+      setSampledPixel(null);
     } catch (error) {
       const message =
         error instanceof Error
@@ -227,6 +280,7 @@ function App() {
           errorMessage={errorMessage}
           fileName={document?.fileName ?? ""}
           toolMode={toolMode}
+          onCanvasClick={handleCanvasClick}
         />
 
         <Sidebar
