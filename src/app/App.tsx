@@ -8,12 +8,23 @@ import Toolbar from "../components/Toolbar";
 import CanvasViewport from "../components/CanvasViewport";
 import Sidebar from "../components/Sidebar";
 import StatusBar from "../components/StatusBar";
+import LevelsDialog from "../components/LevelsDialog";
 import useImageDocument from "../hooks/useImageDocument";
 import type {
   ChannelVisibility,
   SampledPixelInfo,
   ToolMode,
 } from "../types/image";
+import type {
+  LevelsChannelTarget,
+  LevelsDialogState,
+  LevelsHistogramMode,
+  LevelsSettingsMap,
+} from "../types/levels";
+import {
+  createDefaultLevelsSettings,
+  getDefaultLevelsChannel,
+} from "../types/levels";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
@@ -35,6 +46,13 @@ const defaultChannels: ChannelVisibility = {
   alpha: true,
 };
 
+const defaultLevelsDialogState: LevelsDialogState = {
+  isOpen: false,
+  previewEnabled: true,
+  histogramMode: "linear",
+  selectedChannel: "master",
+};
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -47,6 +65,12 @@ function App() {
   const [channels, setChannels] = useState<ChannelVisibility>(defaultChannels);
   const [sampledPixel, setSampledPixel] = useState<SampledPixelInfo | null>(
     null
+  );
+
+  const [levelsDialogState, setLevelsDialogState] =
+    useState<LevelsDialogState>(defaultLevelsDialogState);
+  const [levelsSettings, setLevelsSettings] = useState<LevelsSettingsMap>(
+    createDefaultLevelsSettings()
   );
 
   const renderedImageData = useMemo(() => {
@@ -107,6 +131,58 @@ function App() {
 
   const handleOpen = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleOpenLevels = () => {
+    if (!document) {
+      return;
+    }
+
+    setLevelsDialogState({
+      isOpen: true,
+      previewEnabled: true,
+      histogramMode: "linear",
+      selectedChannel: getDefaultLevelsChannel(document.channelModel),
+    });
+  };
+
+  const handleLevelsChannelChange = (channel: LevelsChannelTarget) => {
+    setLevelsDialogState((previous) => ({
+      ...previous,
+      selectedChannel: channel,
+    }));
+  };
+
+  const handleHistogramModeChange = (mode: LevelsHistogramMode) => {
+    setLevelsDialogState((previous) => ({
+      ...previous,
+      histogramMode: mode,
+    }));
+  };
+
+  const handleLevelsPreviewToggle = (enabled: boolean) => {
+    setLevelsDialogState((previous) => ({
+      ...previous,
+      previewEnabled: enabled,
+    }));
+  };
+
+  const handleLevelsReset = () => {
+    setLevelsSettings(createDefaultLevelsSettings());
+  };
+
+  const handleLevelsCancel = () => {
+    setLevelsDialogState((previous) => ({
+      ...previous,
+      isOpen: false,
+    }));
+  };
+
+  const handleLevelsApply = () => {
+    setLevelsDialogState((previous) => ({
+      ...previous,
+      isOpen: false,
+    }));
   };
 
   const handleToggleEyedropper = () => {
@@ -235,6 +311,8 @@ function App() {
     setToolMode("none");
     setChannels(defaultChannels);
     setSampledPixel(null);
+    setLevelsDialogState(defaultLevelsDialogState);
+    setLevelsSettings(createDefaultLevelsSettings());
 
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -277,6 +355,8 @@ function App() {
       setToolMode("none");
       setChannels(defaultChannels);
       setSampledPixel(null);
+      setLevelsDialogState(defaultLevelsDialogState);
+      setLevelsSettings(createDefaultLevelsSettings());
     } catch (error) {
       const message =
         error instanceof Error
@@ -304,6 +384,7 @@ function App() {
         hasImage={hasImage}
         toolMode={toolMode}
         onOpen={handleOpen}
+        onOpenLevels={handleOpenLevels}
         onExportPng={handleExportPng}
         onExportJpg={handleExportJpg}
         onExportGb7={handleExportGb7}
@@ -339,6 +420,19 @@ function App() {
         hasMask={metadata.hasMask}
         toolMode={toolMode === "eyedropper" ? "Eyedropper" : "None"}
         channelsSummary={channelsSummary}
+      />
+
+      <LevelsDialog
+        open={levelsDialogState.isOpen}
+        document={document}
+        state={levelsDialogState}
+        currentValues={levelsSettings[levelsDialogState.selectedChannel]}
+        onChangeChannel={handleLevelsChannelChange}
+        onChangeHistogramMode={handleHistogramModeChange}
+        onTogglePreview={handleLevelsPreviewToggle}
+        onReset={handleLevelsReset}
+        onCancel={handleLevelsCancel}
+        onApply={handleLevelsApply}
       />
     </Box>
   );
