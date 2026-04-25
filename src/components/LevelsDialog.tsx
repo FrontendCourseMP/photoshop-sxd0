@@ -266,7 +266,7 @@ function LevelsDialog({
 
                 <Slider
                   min={0}
-                  max={254}
+                  max={Math.max(0, currentValues.whitePoint - 1)}
                   step={1}
                   value={currentValues.blackPoint}
                   onChange={(_, value) => onChangeBlackPoint(value as number)}
@@ -319,7 +319,7 @@ function LevelsDialog({
                 </Typography>
 
                 <Slider
-                  min={1}
+                  min={Math.min(255, currentValues.blackPoint + 1)}
                   max={255}
                   step={1}
                   value={currentValues.whitePoint}

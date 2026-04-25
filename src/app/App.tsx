@@ -26,7 +26,9 @@ import {
   createDefaultLevelsValues,
   getDefaultLevelsChannel,
 } from "../types/levels";
+import { imageDataHasAlpha } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
+import { applyLevelsToImageData } from "../utils/applyLevels";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
 import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
@@ -39,6 +41,25 @@ import "../App.css";
 
 function getFileExtension(fileName: string): string {
   return fileName.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (Number.isNaN(value)) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+function getUpdatedColorDepth(
+  channelModel: "grayscale" | "rgb",
+  hasAlpha: boolean
+): string {
+  if (channelModel === "grayscale") {
+    return hasAlpha ? "8-bit grayscale + alpha" : "8-bit grayscale";
+  }
+
+  return hasAlpha ? "32-bit RGBA" : "24-bit RGB";
 }
 
 const defaultChannels: ChannelVisibility = {
@@ -54,14 +75,6 @@ const defaultLevelsDialogState: LevelsDialogState = {
   histogramMode: "linear",
   selectedChannel: "master",
 };
-
-function clamp(value: number, min: number, max: number): number {
-  if (Number.isNaN(value)) {
-    return min;
-  }
-
-  return Math.min(Math.max(value, min), max);
-}
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -82,14 +95,42 @@ function App() {
   const [levelsSettings, setLevelsSettings] = useState<LevelsSettingsMap>(
     createDefaultLevelsSettings()
   );
+  const [levelsBaseImageData, setLevelsBaseImageData] = useState<ImageData | null>(
+    null
+  );
 
-  const renderedImageData = useMemo(() => {
-    if (!document) {
+  const levelsPreviewImageData = useMemo(() => {
+    if (
+      !document ||
+      !levelsBaseImageData ||
+      !levelsDialogState.isOpen ||
+      !levelsDialogState.previewEnabled
+    ) {
       return null;
     }
 
-    return applyChannelVisibility(document.imageData, channels);
-  }, [document, channels]);
+    return applyLevelsToImageData(
+      levelsBaseImageData,
+      document.channelModel,
+      levelsSettings
+    );
+  }, [
+    document,
+    levelsBaseImageData,
+    levelsDialogState.isOpen,
+    levelsDialogState.previewEnabled,
+    levelsSettings,
+  ]);
+
+  const displayedImageData = levelsPreviewImageData ?? document?.imageData ?? null;
+
+  const renderedImageData = useMemo(() => {
+    if (!displayedImageData) {
+      return null;
+    }
+
+    return applyChannelVisibility(displayedImageData, channels);
+  }, [displayedImageData, channels]);
 
   const levelsHistogram = useMemo(() => {
     if (!document) {
@@ -152,7 +193,9 @@ function App() {
   }, [renderedImageData]);
 
   const updateLevelsForSelectedChannel = (
-    updater: (previous: LevelsSettingsMap[LevelsChannelTarget]) => LevelsSettingsMap[LevelsChannelTarget]
+    updater: (
+      previous: LevelsSettingsMap[LevelsChannelTarget]
+    ) => LevelsSettingsMap[LevelsChannelTarget]
   ) => {
     const channel = levelsDialogState.selectedChannel;
 
@@ -170,6 +213,10 @@ function App() {
     if (!document) {
       return;
     }
+
+    setLevelsSettings(createDefaultLevelsSettings());
+    setLevelsBaseImageData(document.imageData);
+    setSampledPixel(null);
 
     setLevelsDialogState({
       isOpen: true,
@@ -239,17 +286,40 @@ function App() {
   };
 
   const handleLevelsCancel = () => {
-    setLevelsDialogState((previous) => ({
-      ...previous,
-      isOpen: false,
-    }));
+    setLevelsDialogState(defaultLevelsDialogState);
+    setLevelsSettings(createDefaultLevelsSettings());
+    setLevelsBaseImageData(null);
+    setSampledPixel(null);
   };
 
   const handleLevelsApply = () => {
-    setLevelsDialogState((previous) => ({
-      ...previous,
-      isOpen: false,
-    }));
+    if (!document || !levelsBaseImageData) {
+      setLevelsDialogState(defaultLevelsDialogState);
+      setLevelsSettings(createDefaultLevelsSettings());
+      setLevelsBaseImageData(null);
+      return;
+    }
+
+    const appliedImageData = applyLevelsToImageData(
+      levelsBaseImageData,
+      document.channelModel,
+      levelsSettings
+    );
+
+    const hasAlpha = imageDataHasAlpha(appliedImageData);
+
+    setDocument({
+      ...document,
+      imageData: appliedImageData,
+      hasMask: hasAlpha,
+      colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
+    });
+
+    setLevelsDialogState(defaultLevelsDialogState);
+    setLevelsSettings(createDefaultLevelsSettings());
+    setLevelsBaseImageData(null);
+    setSampledPixel(null);
+    setErrorMessage("");
   };
 
   const handleToggleEyedropper = () => {
@@ -380,6 +450,7 @@ function App() {
     setSampledPixel(null);
     setLevelsDialogState(defaultLevelsDialogState);
     setLevelsSettings(createDefaultLevelsSettings());
+    setLevelsBaseImageData(null);
 
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -424,6 +495,7 @@ function App() {
       setSampledPixel(null);
       setLevelsDialogState(defaultLevelsDialogState);
       setLevelsSettings(createDefaultLevelsSettings());
+      setLevelsBaseImageData(null);
     } catch (error) {
       const message =
         error instanceof Error
