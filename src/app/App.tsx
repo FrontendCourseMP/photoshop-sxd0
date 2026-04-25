@@ -30,6 +30,7 @@ import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
 import { exportImageAsJpg, exportImageAsPng } from "../utils/exportImage";
 import { getCanvasPixelCoordinates } from "../utils/getCanvasPixelCoordinates";
+import { computeHistogram } from "../utils/histogram";
 import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
 import { rgbToLab } from "../utils/rgbToLab";
@@ -80,6 +81,18 @@ function App() {
 
     return applyChannelVisibility(document.imageData, channels);
   }, [document, channels]);
+
+  const levelsHistogram = useMemo(() => {
+    if (!document) {
+      return {
+        bins: new Array<number>(256).fill(0),
+        maxValue: 0,
+        totalPixels: 0,
+      };
+    }
+
+    return computeHistogram(document.imageData, levelsDialogState.selectedChannel);
+  }, [document, levelsDialogState.selectedChannel]);
 
   const channelsSummary = useMemo(() => {
     if (!document) {
@@ -426,6 +439,7 @@ function App() {
         open={levelsDialogState.isOpen}
         document={document}
         state={levelsDialogState}
+        histogram={levelsHistogram}
         currentValues={levelsSettings[levelsDialogState.selectedChannel]}
         onChangeChannel={handleLevelsChannelChange}
         onChangeHistogramMode={handleHistogramModeChange}

@@ -25,6 +25,12 @@ export interface LevelsDialogState {
   selectedChannel: LevelsChannelTarget;
 }
 
+export interface HistogramData {
+  bins: number[];
+  maxValue: number;
+  totalPixels: number;
+}
+
 export function createDefaultLevelsValues(): LevelsInputValues {
   return {
     blackPoint: 0,
@@ -44,6 +50,8 @@ export function createDefaultLevelsSettings(): LevelsSettingsMap {
   };
 }
 
-export function getDefaultLevelsChannel(channelModel: ChannelModel): LevelsChannelTarget {
+export function getDefaultLevelsChannel(
+  channelModel: ChannelModel
+): LevelsChannelTarget {
   return channelModel === "grayscale" ? "grayscale" : "master";
 }

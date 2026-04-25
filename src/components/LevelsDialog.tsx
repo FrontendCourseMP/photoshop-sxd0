@@ -5,13 +5,13 @@ import {
   Checkbox,
   FormControl,
   FormControlLabel,
-  MenuItem,
-  Select,
+  NativeSelect,
   Stack,
   Typography,
 } from "@mui/material";
 import type { ImageDocument } from "../types/image";
 import type {
+  HistogramData,
   LevelsChannelTarget,
   LevelsDialogState,
   LevelsHistogramMode,
@@ -22,6 +22,7 @@ interface LevelsDialogProps {
   open: boolean;
   document: ImageDocument | null;
   state: LevelsDialogState;
+  histogram: HistogramData;
   currentValues: LevelsInputValues;
   onChangeChannel: (channel: LevelsChannelTarget) => void;
   onChangeHistogramMode: (mode: LevelsHistogramMode) => void;
@@ -64,10 +65,28 @@ function getChannelLabel(channel: LevelsChannelTarget): string {
   }
 }
 
+function getHistogramColor(channel: LevelsChannelTarget): string {
+  switch (channel) {
+    case "master":
+      return "#bdbdbd";
+    case "grayscale":
+      return "#bdbdbd";
+    case "red":
+      return "#ef5350";
+    case "green":
+      return "#66bb6a";
+    case "blue":
+      return "#42a5f5";
+    case "alpha":
+      return "#e0e0e0";
+  }
+}
+
 function LevelsDialog({
   open,
   document,
   state,
+  histogram,
   currentValues,
   onChangeChannel,
   onChangeHistogramMode,
@@ -96,6 +115,19 @@ function LevelsDialog({
 
   const channelOptions = useMemo(() => getChannelOptions(document), [document]);
 
+  const displayHeights = useMemo(() => {
+    const transformed =
+      state.histogramMode === "log"
+        ? histogram.bins.map((value) => Math.log1p(value))
+        : histogram.bins;
+
+    const maxDisplayValue = Math.max(...transformed, 1);
+
+    return transformed.map((value) => (value / maxDisplayValue) * 100);
+  }, [histogram, state.histogramMode]);
+
+  const histogramColor = getHistogramColor(state.selectedChannel);
+
   return (
     <dialog
       ref={dialogRef}
@@ -123,18 +155,18 @@ function LevelsDialog({
                 Channel
               </Typography>
 
-              <Select
+                <NativeSelect
                 value={state.selectedChannel}
                 onChange={(event) =>
-                  onChangeChannel(event.target.value as LevelsChannelTarget)
+                    onChangeChannel(event.target.value as LevelsChannelTarget)
                 }
-              >
+                >
                 {channelOptions.map((channel) => (
-                  <MenuItem key={channel} value={channel}>
+                    <option key={channel} value={channel}>
                     {getChannelLabel(channel)}
-                  </MenuItem>
+                    </option>
                 ))}
-              </Select>
+                </NativeSelect>
             </FormControl>
 
             <FormControl fullWidth size="small">
@@ -142,15 +174,15 @@ function LevelsDialog({
                 Histogram mode
               </Typography>
 
-              <Select
+                <NativeSelect
                 value={state.histogramMode}
                 onChange={(event) =>
-                  onChangeHistogramMode(event.target.value as LevelsHistogramMode)
+                    onChangeHistogramMode(event.target.value as LevelsHistogramMode)
                 }
-              >
-                <MenuItem value="linear">Linear</MenuItem>
-                <MenuItem value="log">Logarithmic</MenuItem>
-              </Select>
+                >
+                <option value="linear">Linear</option>
+                <option value="log">Logarithmic</option>
+                </NativeSelect>
             </FormControl>
           </Stack>
 
@@ -170,7 +202,46 @@ function LevelsDialog({
             </Typography>
 
             <Box className="levels-dialog__histogram-placeholder">
-              Histogram preview will be implemented in the next commit.
+              <Box sx={{ width: "100%" }}>
+                <svg
+                  viewBox="0 0 256 100"
+                  preserveAspectRatio="none"
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    height: 220,
+                    background: "#111",
+                    borderRadius: 8,
+                  }}
+                >
+                  {displayHeights.map((height, index) => (
+                    <rect
+                      key={index}
+                      x={index}
+                      y={100 - height}
+                      width={1}
+                      height={height}
+                      fill={histogramColor}
+                    />
+                  ))}
+                </svg>
+
+                <Box
+                  sx={{
+                    mt: 1,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    color: "#a8a8a8",
+                    fontSize: 12,
+                  }}
+                >
+                  <span>0</span>
+                  <span>
+                    Peak: {histogram.maxValue} px • Total: {histogram.totalPixels}
+                  </span>
+                  <span>255</span>
+                </Box>
+              </Box>
             </Box>
           </Box>
 
