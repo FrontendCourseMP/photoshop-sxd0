@@ -6,7 +6,9 @@ import {
   FormControl,
   FormControlLabel,
   NativeSelect,
+  Slider,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import type { ImageDocument } from "../types/image";
@@ -27,6 +29,9 @@ interface LevelsDialogProps {
   onChangeChannel: (channel: LevelsChannelTarget) => void;
   onChangeHistogramMode: (mode: LevelsHistogramMode) => void;
   onTogglePreview: (enabled: boolean) => void;
+  onChangeBlackPoint: (value: number) => void;
+  onChangeGamma: (value: number) => void;
+  onChangeWhitePoint: (value: number) => void;
   onReset: () => void;
   onCancel: () => void;
   onApply: () => void;
@@ -91,6 +96,9 @@ function LevelsDialog({
   onChangeChannel,
   onChangeHistogramMode,
   onTogglePreview,
+  onChangeBlackPoint,
+  onChangeGamma,
+  onChangeWhitePoint,
   onReset,
   onCancel,
   onApply,
@@ -155,18 +163,18 @@ function LevelsDialog({
                 Channel
               </Typography>
 
-                <NativeSelect
+              <NativeSelect
                 value={state.selectedChannel}
                 onChange={(event) =>
-                    onChangeChannel(event.target.value as LevelsChannelTarget)
+                  onChangeChannel(event.target.value as LevelsChannelTarget)
                 }
-                >
+              >
                 {channelOptions.map((channel) => (
-                    <option key={channel} value={channel}>
+                  <option key={channel} value={channel}>
                     {getChannelLabel(channel)}
-                    </option>
+                  </option>
                 ))}
-                </NativeSelect>
+              </NativeSelect>
             </FormControl>
 
             <FormControl fullWidth size="small">
@@ -174,15 +182,15 @@ function LevelsDialog({
                 Histogram mode
               </Typography>
 
-                <NativeSelect
+              <NativeSelect
                 value={state.histogramMode}
                 onChange={(event) =>
-                    onChangeHistogramMode(event.target.value as LevelsHistogramMode)
+                  onChangeHistogramMode(event.target.value as LevelsHistogramMode)
                 }
-                >
+              >
                 <option value="linear">Linear</option>
                 <option value="log">Logarithmic</option>
-                </NativeSelect>
+              </NativeSelect>
             </FormControl>
           </Stack>
 
@@ -246,24 +254,95 @@ function LevelsDialog({
           </Box>
 
           <Box className="levels-dialog__levels-panel">
-            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
               Input Levels
             </Typography>
 
-            <Stack spacing={1}>
-              <Typography variant="body2">
-                Black point: {currentValues.blackPoint}
-              </Typography>
-              <Typography variant="body2">
-                Gamma: {currentValues.gamma.toFixed(2)}
-              </Typography>
-              <Typography variant="body2">
-                White point: {currentValues.whitePoint}
-              </Typography>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Black point
+                </Typography>
+
+                <Slider
+                  min={0}
+                  max={254}
+                  step={1}
+                  value={currentValues.blackPoint}
+                  onChange={(_, value) => onChangeBlackPoint(value as number)}
+                />
+
+                <TextField
+                  size="small"
+                  type="number"
+                  value={currentValues.blackPoint}
+                  onChange={(event) =>
+                    onChangeBlackPoint(Number(event.target.value))
+                  }
+                  slotProps={{
+                    htmlInput: { min: 0, max: 254, step: 1 },
+                  }}
+                  fullWidth
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Gamma
+                </Typography>
+
+                <Slider
+                  min={0.1}
+                  max={9.9}
+                  step={0.1}
+                  value={currentValues.gamma}
+                  onChange={(_, value) => onChangeGamma(value as number)}
+                />
+
+                <TextField
+                  size="small"
+                  type="number"
+                  value={currentValues.gamma}
+                  onChange={(event) =>
+                    onChangeGamma(Number(event.target.value))
+                  }
+                  slotProps={{
+                    htmlInput: { min: 0.1, max: 9.9, step: 0.1 },
+                  }}
+                  fullWidth
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  White point
+                </Typography>
+
+                <Slider
+                  min={1}
+                  max={255}
+                  step={1}
+                  value={currentValues.whitePoint}
+                  onChange={(_, value) => onChangeWhitePoint(value as number)}
+                />
+
+                <TextField
+                  size="small"
+                  type="number"
+                  value={currentValues.whitePoint}
+                  onChange={(event) =>
+                    onChangeWhitePoint(Number(event.target.value))
+                  }
+                  slotProps={{
+                    htmlInput: { min: 1, max: 255, step: 1 },
+                  }}
+                  fullWidth
+                />
+              </Box>
             </Stack>
 
             <Typography variant="body2" sx={{ mt: 1.5, color: "#a8a8a8" }}>
-              Sliders and constraints will be added in the next commit.
+              Values are stored independently for each selected channel.
             </Typography>
           </Box>
         </Stack>

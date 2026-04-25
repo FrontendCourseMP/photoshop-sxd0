@@ -23,6 +23,7 @@ import type {
 } from "../types/levels";
 import {
   createDefaultLevelsSettings,
+  createDefaultLevelsValues,
   getDefaultLevelsChannel,
 } from "../types/levels";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
@@ -53,6 +54,14 @@ const defaultLevelsDialogState: LevelsDialogState = {
   histogramMode: "linear",
   selectedChannel: "master",
 };
+
+function clamp(value: number, min: number, max: number): number {
+  if (Number.isNaN(value)) {
+    return min;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -142,6 +151,17 @@ function App() {
     renderToCanvas(canvasRef.current, renderedImageData);
   }, [renderedImageData]);
 
+  const updateLevelsForSelectedChannel = (
+    updater: (previous: LevelsSettingsMap[LevelsChannelTarget]) => LevelsSettingsMap[LevelsChannelTarget]
+  ) => {
+    const channel = levelsDialogState.selectedChannel;
+
+    setLevelsSettings((previous) => ({
+      ...previous,
+      [channel]: updater(previous[channel]),
+    }));
+  };
+
   const handleOpen = () => {
     fileInputRef.current?.click();
   };
@@ -180,8 +200,42 @@ function App() {
     }));
   };
 
+  const handleChangeBlackPoint = (value: number) => {
+    updateLevelsForSelectedChannel((previous) => {
+      const blackPoint = clamp(Math.round(value), 0, previous.whitePoint - 1);
+
+      return {
+        ...previous,
+        blackPoint,
+      };
+    });
+  };
+
+  const handleChangeGamma = (value: number) => {
+    updateLevelsForSelectedChannel((previous) => ({
+      ...previous,
+      gamma: clamp(Number(value), 0.1, 9.9),
+    }));
+  };
+
+  const handleChangeWhitePoint = (value: number) => {
+    updateLevelsForSelectedChannel((previous) => {
+      const whitePoint = clamp(Math.round(value), previous.blackPoint + 1, 255);
+
+      return {
+        ...previous,
+        whitePoint,
+      };
+    });
+  };
+
   const handleLevelsReset = () => {
-    setLevelsSettings(createDefaultLevelsSettings());
+    const channel = levelsDialogState.selectedChannel;
+
+    setLevelsSettings((previous) => ({
+      ...previous,
+      [channel]: createDefaultLevelsValues(),
+    }));
   };
 
   const handleLevelsCancel = () => {
@@ -444,6 +498,9 @@ function App() {
         onChangeChannel={handleLevelsChannelChange}
         onChangeHistogramMode={handleHistogramModeChange}
         onTogglePreview={handleLevelsPreviewToggle}
+        onChangeBlackPoint={handleChangeBlackPoint}
+        onChangeGamma={handleChangeGamma}
+        onChangeWhitePoint={handleChangeWhitePoint}
         onReset={handleLevelsReset}
         onCancel={handleLevelsCancel}
         onApply={handleLevelsApply}

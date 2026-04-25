@@ -80,6 +80,8 @@
 }
 
 .levels-dialog__levels-panel {
+  display: grid;
+  gap: 12px;
   padding: 16px;
   border: 1px solid #333;
   border-radius: 8px;
