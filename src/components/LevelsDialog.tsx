@@ -37,6 +37,10 @@ interface LevelsDialogProps {
   onApply: () => void;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 function getChannelOptions(document: ImageDocument | null): LevelsChannelTarget[] {
   if (!document) {
     return ["master"];
@@ -87,6 +91,32 @@ function getHistogramColor(channel: LevelsChannelTarget): string {
   }
 }
 
+function gammaToMarkerPosition(
+  blackPoint: number,
+  whitePoint: number,
+  gamma: number
+): number {
+  const safeGamma = clamp(gamma, 0.1, 9.9);
+  const span = Math.max(1, whitePoint - blackPoint);
+  const normalized = Math.pow(0.5, 1 / safeGamma);
+  return Math.round(blackPoint + normalized * span);
+}
+
+function markerPositionToGamma(
+  blackPoint: number,
+  whitePoint: number,
+  markerPosition: number
+): number {
+  const span = Math.max(1, whitePoint - blackPoint);
+  const normalized = clamp(
+    (markerPosition - blackPoint) / span,
+    0.01,
+    0.99
+  );
+
+  return clamp(Math.log(0.5) / Math.log(normalized), 0.1, 9.9);
+}
+
 function LevelsDialog({
   open,
   document,
@@ -135,6 +165,28 @@ function LevelsDialog({
   }, [histogram, state.histogramMode]);
 
   const histogramColor = getHistogramColor(state.selectedChannel);
+
+  const gammaMarkerPosition = useMemo(() => {
+    return gammaToMarkerPosition(
+      currentValues.blackPoint,
+      currentValues.whitePoint,
+      currentValues.gamma
+    );
+  }, [
+    currentValues.blackPoint,
+    currentValues.whitePoint,
+    currentValues.gamma,
+  ]);
+
+  const gammaMarkerMin = Math.min(
+    255,
+    currentValues.blackPoint + 1
+  );
+
+  const gammaMarkerMax = Math.max(
+    gammaMarkerMin,
+    currentValues.whitePoint - 1
+  );
 
   return (
     <dialog
@@ -233,6 +285,71 @@ function LevelsDialog({
                     />
                   ))}
                 </svg>
+
+                <Box className="levels-dialog__marker-strip">
+                  <Slider
+                    min={0}
+                    max={255}
+                    value={[currentValues.blackPoint, currentValues.whitePoint]}
+                    onChange={(_, value) => {
+                      const [black, white] = value as number[];
+                      onChangeBlackPoint(black);
+                      onChangeWhitePoint(white);
+                    }}
+                    disableSwap
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      color: "#bdbdbd",
+                      "& .MuiSlider-rail": {
+                        height: 2,
+                        opacity: 1,
+                        bgcolor: "#555",
+                      },
+                      "& .MuiSlider-track": {
+                        height: 2,
+                      },
+                      "& .MuiSlider-thumb": {
+                        width: 14,
+                        height: 14,
+                        borderRadius: "3px",
+                      },
+                    }}
+                  />
+
+                  <Slider
+                    min={gammaMarkerMin}
+                    max={gammaMarkerMax}
+                    value={clamp(gammaMarkerPosition, gammaMarkerMin, gammaMarkerMax)}
+                    onChange={(_, value) => {
+                      const marker = value as number;
+                      onChangeGamma(
+                        markerPositionToGamma(
+                          currentValues.blackPoint,
+                          currentValues.whitePoint,
+                          marker
+                        )
+                      );
+                    }}
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      color: "#ffd54f",
+                      "& .MuiSlider-rail": {
+                        opacity: 0,
+                      },
+                      "& .MuiSlider-track": {
+                        display: "none",
+                      },
+                      "& .MuiSlider-thumb": {
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+                      },
+                    }}
+                  />
+                </Box>
 
                 <Box
                   sx={{

@@ -93,3 +93,10 @@
   align-items: center;
   gap: 12px;
 }
+
+.levels-dialog__marker-strip {
+  position: relative;
+  height: 28px;
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
