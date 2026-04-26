@@ -41,7 +41,9 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function getChannelOptions(document: ImageDocument | null): LevelsChannelTarget[] {
+function getChannelOptions(
+  document: ImageDocument | null
+): LevelsChannelTarget[] {
   if (!document) {
     return ["master"];
   }
@@ -108,11 +110,7 @@ function markerPositionToGamma(
   markerPosition: number
 ): number {
   const span = Math.max(1, whitePoint - blackPoint);
-  const normalized = clamp(
-    (markerPosition - blackPoint) / span,
-    0.01,
-    0.99
-  );
+  const normalized = clamp((markerPosition - blackPoint) / span, 0.01, 0.99);
 
   return clamp(Math.log(0.5) / Math.log(normalized), 0.1, 9.9);
 }
@@ -178,15 +176,8 @@ function LevelsDialog({
     currentValues.gamma,
   ]);
 
-  const gammaMarkerMin = Math.min(
-    255,
-    currentValues.blackPoint + 1
-  );
-
-  const gammaMarkerMax = Math.max(
-    gammaMarkerMin,
-    currentValues.whitePoint - 1
-  );
+  const gammaMarkerMin = Math.min(255, currentValues.blackPoint + 1);
+  const gammaMarkerMax = Math.max(gammaMarkerMin, currentValues.whitePoint - 1);
 
   return (
     <dialog
@@ -320,7 +311,11 @@ function LevelsDialog({
                   <Slider
                     min={gammaMarkerMin}
                     max={gammaMarkerMax}
-                    value={clamp(gammaMarkerPosition, gammaMarkerMin, gammaMarkerMax)}
+                    value={clamp(
+                      gammaMarkerPosition,
+                      gammaMarkerMin,
+                      gammaMarkerMax
+                    )}
                     onChange={(_, value) => {
                       const marker = value as number;
                       onChangeGamma(
@@ -349,6 +344,22 @@ function LevelsDialog({
                       },
                     }}
                   />
+                </Box>
+
+                <Box
+                  sx={{
+                    mt: 0.75,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    color: "#c7c7c7",
+                    fontSize: 12,
+                    gap: 2,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span>Black: {currentValues.blackPoint}</span>
+                  <span>Gamma: {currentValues.gamma.toFixed(2)}</span>
+                  <span>White: {currentValues.whitePoint}</span>
                 </Box>
 
                 <Box

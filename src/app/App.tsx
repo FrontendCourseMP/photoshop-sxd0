@@ -95,9 +95,29 @@ function App() {
   const [levelsSettings, setLevelsSettings] = useState<LevelsSettingsMap>(
     createDefaultLevelsSettings()
   );
+  const [previewRenderSettings, setPreviewRenderSettings] =
+    useState<LevelsSettingsMap>(createDefaultLevelsSettings());
   const [levelsBaseImageData, setLevelsBaseImageData] = useState<ImageData | null>(
     null
   );
+
+  useEffect(() => {
+    if (!levelsDialogState.isOpen || !levelsDialogState.previewEnabled) {
+      return;
+    }
+
+    const frameId = requestAnimationFrame(() => {
+      setPreviewRenderSettings(levelsSettings);
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [
+    levelsDialogState.isOpen,
+    levelsDialogState.previewEnabled,
+    levelsSettings,
+  ]);
 
   const levelsPreviewImageData = useMemo(() => {
     if (
@@ -112,14 +132,14 @@ function App() {
     return applyLevelsToImageData(
       levelsBaseImageData,
       document.channelModel,
-      levelsSettings
+      previewRenderSettings
     );
   }, [
     document,
     levelsBaseImageData,
     levelsDialogState.isOpen,
     levelsDialogState.previewEnabled,
-    levelsSettings,
+    previewRenderSettings,
   ]);
 
   const displayedImageData = levelsPreviewImageData ?? document?.imageData ?? null;
@@ -214,7 +234,10 @@ function App() {
       return;
     }
 
-    setLevelsSettings(createDefaultLevelsSettings());
+    const defaults = createDefaultLevelsSettings();
+
+    setLevelsSettings(defaults);
+    setPreviewRenderSettings(defaults);
     setLevelsBaseImageData(document.imageData);
     setSampledPixel(null);
 
@@ -278,16 +301,23 @@ function App() {
 
   const handleLevelsReset = () => {
     const channel = levelsDialogState.selectedChannel;
+    const defaultValues = createDefaultLevelsValues();
 
     setLevelsSettings((previous) => ({
       ...previous,
-      [channel]: createDefaultLevelsValues(),
+      [channel]: defaultValues,
+    }));
+
+    setPreviewRenderSettings((previous) => ({
+      ...previous,
+      [channel]: defaultValues,
     }));
   };
 
   const handleLevelsCancel = () => {
     setLevelsDialogState(defaultLevelsDialogState);
     setLevelsSettings(createDefaultLevelsSettings());
+    setPreviewRenderSettings(createDefaultLevelsSettings());
     setLevelsBaseImageData(null);
     setSampledPixel(null);
   };
@@ -296,6 +326,7 @@ function App() {
     if (!document || !levelsBaseImageData) {
       setLevelsDialogState(defaultLevelsDialogState);
       setLevelsSettings(createDefaultLevelsSettings());
+      setPreviewRenderSettings(createDefaultLevelsSettings());
       setLevelsBaseImageData(null);
       return;
     }
@@ -317,6 +348,7 @@ function App() {
 
     setLevelsDialogState(defaultLevelsDialogState);
     setLevelsSettings(createDefaultLevelsSettings());
+    setPreviewRenderSettings(createDefaultLevelsSettings());
     setLevelsBaseImageData(null);
     setSampledPixel(null);
     setErrorMessage("");
@@ -450,6 +482,7 @@ function App() {
     setSampledPixel(null);
     setLevelsDialogState(defaultLevelsDialogState);
     setLevelsSettings(createDefaultLevelsSettings());
+    setPreviewRenderSettings(createDefaultLevelsSettings());
     setLevelsBaseImageData(null);
 
     if (canvasRef.current) {
@@ -495,6 +528,7 @@ function App() {
       setSampledPixel(null);
       setLevelsDialogState(defaultLevelsDialogState);
       setLevelsSettings(createDefaultLevelsSettings());
+      setPreviewRenderSettings(createDefaultLevelsSettings());
       setLevelsBaseImageData(null);
     } catch (error) {
       const message =
