@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 
 interface StatusBarProps {
@@ -9,6 +10,11 @@ interface StatusBarProps {
   fileName: string;
   toolMode: string;
   channelsSummary: string;
+  hasImage: boolean;
+  scalePercent: number;
+  scaleMin: number;
+  scaleMax: number;
+  onScalePercentChange: (value: number) => void;
 }
 
 function StatusBar({
@@ -20,7 +26,16 @@ function StatusBar({
   fileName,
   toolMode,
   channelsSummary,
+  hasImage,
+  scalePercent,
+  scaleMin,
+  scaleMax,
+  onScalePercentChange,
 }: StatusBarProps) {
+  const handleScaleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onScalePercentChange(Number(event.target.value));
+  };
+
   return (
     <Box className="app-statusbar">
       <Stack
@@ -47,6 +62,21 @@ function StatusBar({
         </Typography>
         <Typography variant="body2">Tool: {toolMode}</Typography>
         <Typography variant="body2">Visible channels: {channelsSummary}</Typography>
+
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Typography variant="body2">Scale: {scalePercent}%</Typography>
+          <input
+            type="range"
+            min={scaleMin}
+            max={scaleMax}
+            step={1}
+            value={scalePercent}
+            disabled={!hasImage}
+            onChange={handleScaleChange}
+            style={{ width: 140 }}
+          />
+          <Typography variant="body2">Interpolation: Bilinear</Typography>
+        </Stack>
       </Stack>
     </Box>
   );

@@ -25,6 +25,11 @@ import {
   createDefaultLevelsSettings,
   getDefaultLevelsChannel,
 } from "../types/levels";
+import {
+  SCALE_PERCENT_DEFAULT,
+  SCALE_PERCENT_MAX,
+  SCALE_PERCENT_MIN,
+} from "../types/scale";
 import { cloneImageData, imageDataHasAlpha } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { applyLevelsToImageData } from "../utils/applyLevels";
@@ -35,6 +40,10 @@ import { getCanvasPixelCoordinates } from "../utils/getCanvasPixelCoordinates";
 import { computeHistogram } from "../utils/histogram";
 import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
+import {
+  calculateDimensionsFromPercent,
+  resizeImageData,
+} from "../utils/resizeImage";
 import { rgbToLab } from "../utils/rgbToLab";
 import "../App.css";
 
@@ -87,6 +96,9 @@ function App() {
   const [channels, setChannels] = useState<ChannelVisibility>(defaultChannels);
   const [sampledPixel, setSampledPixel] = useState<SampledPixelInfo | null>(
     null
+  );
+  const [displayScalePercent, setDisplayScalePercent] = useState(
+    SCALE_PERCENT_DEFAULT
   );
 
   const [levelsDialogState, setLevelsDialogState] =
@@ -151,6 +163,20 @@ function App() {
     return applyChannelVisibility(displayedImageData, channels);
   }, [displayedImageData, channels]);
 
+  const scaledRenderedImageData = useMemo(() => {
+    if (!renderedImageData) {
+      return null;
+    }
+
+    const dimensions = calculateDimensionsFromPercent(
+      renderedImageData.width,
+      renderedImageData.height,
+      displayScalePercent
+    );
+
+    return resizeImageData(renderedImageData, dimensions, "bilinear");
+  }, [renderedImageData, displayScalePercent]);
+
   const levelsHistogram = useMemo(() => {
     if (!document) {
       return {
@@ -204,12 +230,12 @@ function App() {
   }, [document, channels]);
 
   useEffect(() => {
-    if (!renderedImageData || !canvasRef.current) {
+    if (!scaledRenderedImageData || !canvasRef.current) {
       return;
     }
 
-    renderToCanvas(canvasRef.current, renderedImageData);
-  }, [renderedImageData]);
+    renderToCanvas(canvasRef.current, scaledRenderedImageData);
+  }, [scaledRenderedImageData]);
 
   const updateLevelsForSelectedChannel = (
     updater: (
@@ -226,6 +252,17 @@ function App() {
 
   const handleOpen = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleDisplayScaleChange = (value: number) => {
+    const nextScale = clamp(
+      Math.round(value),
+      SCALE_PERCENT_MIN,
+      SCALE_PERCENT_MAX
+    );
+
+    setDisplayScalePercent(nextScale);
+    setSampledPixel(null);
   };
 
   const handleOpenLevels = () => {
@@ -378,17 +415,41 @@ function App() {
   };
 
   const handleCanvasClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
-    if (toolMode !== "eyedropper" || !renderedImageData) {
+    if (
+      toolMode !== "eyedropper" ||
+      !renderedImageData ||
+      !scaledRenderedImageData
+    ) {
       return;
     }
 
     try {
-      const { x, y } = getCanvasPixelCoordinates(
+      const canvasCoordinates = getCanvasPixelCoordinates(
         event.currentTarget,
         event.clientX,
         event.clientY
       );
 
+      const sourceX = clamp(
+        Math.floor(
+          (canvasCoordinates.x * renderedImageData.width) /
+            scaledRenderedImageData.width
+        ),
+        0,
+        renderedImageData.width - 1
+      );
+
+      const sourceY = clamp(
+        Math.floor(
+          (canvasCoordinates.y * renderedImageData.height) /
+            scaledRenderedImageData.height
+        ),
+        0,
+        renderedImageData.height - 1
+      );
+
+      const x = sourceX;
+      const y = sourceY;
       const pixelIndex = (y * renderedImageData.width + x) * 4;
       const red = renderedImageData.data[pixelIndex];
       const green = renderedImageData.data[pixelIndex + 1];
@@ -471,6 +532,7 @@ function App() {
     setToolMode("none");
     setChannels(defaultChannels);
     setSampledPixel(null);
+    setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
     setLevelsDialogState(defaultLevelsDialogState);
     setLevelsSettings(createDefaultLevelsSettings());
     setPreviewRenderSettings(createDefaultLevelsSettings());
@@ -517,6 +579,7 @@ function App() {
       setToolMode("none");
       setChannels(defaultChannels);
       setSampledPixel(null);
+      setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
       setLevelsDialogState(defaultLevelsDialogState);
       setLevelsSettings(createDefaultLevelsSettings());
       setPreviewRenderSettings(createDefaultLevelsSettings());
@@ -584,6 +647,11 @@ function App() {
         hasMask={metadata.hasMask}
         toolMode={toolMode === "eyedropper" ? "Eyedropper" : "None"}
         channelsSummary={channelsSummary}
+        hasImage={hasImage}
+        scalePercent={displayScalePercent}
+        scaleMin={SCALE_PERCENT_MIN}
+        scaleMax={SCALE_PERCENT_MAX}
+        onScalePercentChange={handleDisplayScaleChange}
       />
 
       <LevelsDialog

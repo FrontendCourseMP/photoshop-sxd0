@@ -117,8 +117,6 @@ function CanvasViewport({
                 onClick={onCanvasClick}
                 style={{
                   display: "block",
-                  maxWidth: "100%",
-                  height: "auto",
                   boxShadow: eyedropperActive
                     ? "0 0 0 1px rgba(126, 87, 194, 0.55)"
                     : "0 0 0 1px rgba(255,255,255,0.06)",
