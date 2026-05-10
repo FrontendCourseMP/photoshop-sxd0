@@ -27,3 +27,11 @@ export function detectChannelModel(imageData: ImageData): ChannelModel {
 
   return "grayscale";
 }
+
+export function cloneImageData(imageData: ImageData): ImageData {
+  return new ImageData(
+    new Uint8ClampedArray(imageData.data),
+    imageData.width,
+    imageData.height
+  );
+}

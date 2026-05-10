@@ -23,10 +23,9 @@ import type {
 } from "../types/levels";
 import {
   createDefaultLevelsSettings,
-  createDefaultLevelsValues,
   getDefaultLevelsChannel,
 } from "../types/levels";
-import { imageDataHasAlpha } from "../utils/analyzeImageData";
+import { cloneImageData, imageDataHasAlpha } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { applyLevelsToImageData } from "../utils/applyLevels";
 import { decodeGB7 } from "../utils/decodeGB7";
@@ -238,7 +237,7 @@ function App() {
 
     setLevelsSettings(defaults);
     setPreviewRenderSettings(defaults);
-    setLevelsBaseImageData(document.imageData);
+    setLevelsBaseImageData(cloneImageData(document.imageData));
     setSampledPixel(null);
 
     setLevelsDialogState({
@@ -300,18 +299,10 @@ function App() {
   };
 
   const handleLevelsReset = () => {
-    const channel = levelsDialogState.selectedChannel;
-    const defaultValues = createDefaultLevelsValues();
+    const defaultSettings = createDefaultLevelsSettings();
 
-    setLevelsSettings((previous) => ({
-      ...previous,
-      [channel]: defaultValues,
-    }));
-
-    setPreviewRenderSettings((previous) => ({
-      ...previous,
-      [channel]: defaultValues,
-    }));
+    setLevelsSettings(defaultSettings);
+    setPreviewRenderSettings(defaultSettings);
   };
 
   const handleLevelsCancel = () => {

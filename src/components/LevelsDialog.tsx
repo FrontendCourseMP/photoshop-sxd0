@@ -470,7 +470,7 @@ function LevelsDialog({
             </Stack>
 
             <Typography variant="body2" sx={{ mt: 1.5, color: "#a8a8a8" }}>
-              Values are stored independently for each selected channel.
+              Values are stored independently for each channel. Reset restores all channels.
             </Typography>
           </Box>
         </Stack>
