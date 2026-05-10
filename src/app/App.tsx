@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type {
-  ChangeEvent,
-  MouseEvent as ReactMouseEvent,
-} from "react";
+import type { ChangeEvent, MouseEvent as ReactMouseEvent } from "react";
 import { Box } from "@mui/material";
 import Toolbar from "../components/Toolbar";
 import CanvasViewport from "../components/CanvasViewport";
@@ -42,6 +39,7 @@ import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
 import {
   calculateDimensionsFromPercent,
+  calculateScalePercentToFit,
   resizeImageData,
 } from "../utils/resizeImage";
 import { rgbToLab } from "../utils/rgbToLab";
@@ -84,8 +82,11 @@ const defaultLevelsDialogState: LevelsDialogState = {
   selectedChannel: "master",
 };
 
+const DISPLAY_FIT_PADDING_PX = 50;
+
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { document, setDocument, hasImage, metadata, clearDocument } =
@@ -108,9 +109,8 @@ function App() {
   );
   const [previewRenderSettings, setPreviewRenderSettings] =
     useState<LevelsSettingsMap>(createDefaultLevelsSettings());
-  const [levelsBaseImageData, setLevelsBaseImageData] = useState<ImageData | null>(
-    null
-  );
+  const [levelsBaseImageData, setLevelsBaseImageData] =
+    useState<ImageData | null>(null);
 
   useEffect(() => {
     if (!levelsDialogState.isOpen || !levelsDialogState.previewEnabled) {
@@ -236,6 +236,21 @@ function App() {
 
     renderToCanvas(canvasRef.current, scaledRenderedImageData);
   }, [scaledRenderedImageData]);
+
+  const calculateInitialDisplayScale = (imageData: ImageData): number => {
+    const viewportWidth =
+      canvasViewportRef.current?.clientWidth ?? window.innerWidth;
+    const viewportHeight =
+      canvasViewportRef.current?.clientHeight ?? window.innerHeight;
+
+    return calculateScalePercentToFit(
+      imageData.width,
+      imageData.height,
+      viewportWidth,
+      viewportHeight,
+      DISPLAY_FIT_PADDING_PX
+    );
+  };
 
   const updateLevelsForSelectedChannel = (
     updater: (
@@ -579,7 +594,9 @@ function App() {
       setToolMode("none");
       setChannels(defaultChannels);
       setSampledPixel(null);
-      setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
+      setDisplayScalePercent(
+        calculateInitialDisplayScale(loadedDocument.imageData)
+      );
       setLevelsDialogState(defaultLevelsDialogState);
       setLevelsSettings(createDefaultLevelsSettings());
       setPreviewRenderSettings(createDefaultLevelsSettings());
@@ -623,6 +640,7 @@ function App() {
         <CanvasViewport
           hasImage={hasImage}
           canvasRef={canvasRef}
+          viewportRef={canvasViewportRef}
           errorMessage={errorMessage}
           fileName={document?.fileName ?? ""}
           toolMode={toolMode}

@@ -5,6 +5,7 @@ import type { ToolMode } from "../types/image";
 interface CanvasViewportProps {
   hasImage: boolean;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  viewportRef: RefObject<HTMLDivElement | null>;
   errorMessage: string;
   fileName: string;
   toolMode: ToolMode;
@@ -14,6 +15,7 @@ interface CanvasViewportProps {
 function CanvasViewport({
   hasImage,
   canvasRef,
+  viewportRef,
   errorMessage,
   fileName,
   toolMode,
@@ -67,6 +69,7 @@ function CanvasViewport({
         </Box>
 
         <Box
+          ref={viewportRef}
           sx={{
             minHeight: 0,
             overflow: "auto",
