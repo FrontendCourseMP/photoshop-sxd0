@@ -10,6 +10,7 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import ColorizeOutlinedIcon from "@mui/icons-material/ColorizeOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import AspectRatioOutlinedIcon from "@mui/icons-material/AspectRatioOutlined";
 import type { ToolMode } from "../types/image";
 
 interface ToolbarProps {
@@ -17,6 +18,7 @@ interface ToolbarProps {
   toolMode: ToolMode;
   onOpen: () => void;
   onOpenLevels: () => void;
+  onOpenResize: () => void;
   onExportPng: () => void;
   onExportJpg: () => void;
   onExportGb7: () => void;
@@ -29,6 +31,7 @@ function Toolbar({
   toolMode,
   onOpen,
   onOpenLevels,
+  onOpenResize,
   onExportPng,
   onExportJpg,
   onExportGb7,
@@ -73,6 +76,15 @@ function Toolbar({
             onClick={onOpenLevels}
           >
             Levels
+          </Button>
+
+          <Button
+            variant="outlined"
+            startIcon={<AspectRatioOutlinedIcon />}
+            disabled={!hasImage}
+            onClick={onOpenResize}
+          >
+            Resize
           </Button>
 
           <Button

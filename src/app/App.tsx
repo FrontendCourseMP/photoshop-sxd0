@@ -6,6 +6,7 @@ import CanvasViewport from "../components/CanvasViewport";
 import Sidebar from "../components/Sidebar";
 import StatusBar from "../components/StatusBar";
 import LevelsDialog from "../components/LevelsDialog";
+import ResizeDialog from "../components/ResizeDialog";
 import useImageDocument from "../hooks/useImageDocument";
 import type {
   ChannelVisibility,
@@ -22,6 +23,7 @@ import {
   createDefaultLevelsSettings,
   getDefaultLevelsChannel,
 } from "../types/levels";
+import type { InterpolationMethod, ResizeDimensions } from "../types/scale";
 import {
   SCALE_PERCENT_DEFAULT,
   SCALE_PERCENT_MAX,
@@ -111,6 +113,7 @@ function App() {
     useState<LevelsSettingsMap>(createDefaultLevelsSettings());
   const [levelsBaseImageData, setLevelsBaseImageData] =
     useState<ImageData | null>(null);
+  const [resizeDialogOpen, setResizeDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!levelsDialogState.isOpen || !levelsDialogState.previewEnabled) {
@@ -278,6 +281,60 @@ function App() {
 
     setDisplayScalePercent(nextScale);
     setSampledPixel(null);
+  };
+
+  const handleOpenResize = () => {
+    if (!document) {
+      return;
+    }
+
+    setToolMode("none");
+    setSampledPixel(null);
+    setResizeDialogOpen(true);
+  };
+
+  const handleResizeCancel = () => {
+    setResizeDialogOpen(false);
+  };
+
+  const handleResizeApply = (
+    dimensions: ResizeDimensions,
+    interpolationMethod: InterpolationMethod
+  ) => {
+    if (!document) {
+      return;
+    }
+
+    try {
+      const resizedImageData = resizeImageData(
+        document.imageData,
+        dimensions,
+        interpolationMethod
+      );
+
+      const hasAlpha = imageDataHasAlpha(resizedImageData);
+
+      setDocument({
+        ...document,
+        width: resizedImageData.width,
+        height: resizedImageData.height,
+        imageData: resizedImageData,
+        hasMask: hasAlpha,
+        colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
+      });
+
+      setResizeDialogOpen(false);
+      setToolMode("none");
+      setSampledPixel(null);
+      setChannels(defaultChannels);
+      setDisplayScalePercent(calculateInitialDisplayScale(resizedImageData));
+      setErrorMessage("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to resize image.";
+
+      setErrorMessage(message);
+    }
   };
 
   const handleOpenLevels = () => {
@@ -552,6 +609,7 @@ function App() {
     setLevelsSettings(createDefaultLevelsSettings());
     setPreviewRenderSettings(createDefaultLevelsSettings());
     setLevelsBaseImageData(null);
+    setResizeDialogOpen(false);
 
     if (canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -601,6 +659,7 @@ function App() {
       setLevelsSettings(createDefaultLevelsSettings());
       setPreviewRenderSettings(createDefaultLevelsSettings());
       setLevelsBaseImageData(null);
+      setResizeDialogOpen(false);
     } catch (error) {
       const message =
         error instanceof Error
@@ -629,6 +688,7 @@ function App() {
         toolMode={toolMode}
         onOpen={handleOpen}
         onOpenLevels={handleOpenLevels}
+        onOpenResize={handleOpenResize}
         onExportPng={handleExportPng}
         onExportJpg={handleExportJpg}
         onExportGb7={handleExportGb7}
@@ -687,6 +747,13 @@ function App() {
         onReset={handleLevelsReset}
         onCancel={handleLevelsCancel}
         onApply={handleLevelsApply}
+      />
+
+      <ResizeDialog
+        open={resizeDialogOpen}
+        document={document}
+        onCancel={handleResizeCancel}
+        onApply={handleResizeApply}
       />
     </Box>
   );
