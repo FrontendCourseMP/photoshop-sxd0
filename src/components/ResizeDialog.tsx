@@ -208,9 +208,7 @@ function ResizeDialog({
   const selectedMethodInfo = getInterpolationMethodInfo(interpolationMethod);
   const applyDisabled = !document || validationMessage.length > 0;
 
-  const handleUnitChange = (nextUnit: ResizeUnit) => {
-    setUnit(nextUnit);
-
+  const resetValuesForCurrentUnit = (nextUnit: ResizeUnit) => {
     if (!document) {
       return;
     }
@@ -223,6 +221,11 @@ function ResizeDialog({
 
     setWidthValue(String(document.width));
     setHeightValue(String(document.height));
+  };
+
+  const handleUnitChange = (nextUnit: ResizeUnit) => {
+    setUnit(nextUnit);
+    resetValuesForCurrentUnit(nextUnit);
   };
 
   const handleWidthChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -292,6 +295,12 @@ function ResizeDialog({
     setHeightValue(String(Math.max(1, Math.round(parsedWidth / aspectRatio))));
   };
 
+  const handleReset = () => {
+    resetValuesForCurrentUnit(unit);
+    setKeepAspectRatio(true);
+    setInterpolationMethod("bilinear");
+  };
+
   const handleApply = () => {
     if (!document || applyDisabled) {
       return;
@@ -324,13 +333,11 @@ function ResizeDialog({
           <Box className="resize-dialog__pixel-summary">
             <Box>
               <Typography variant="body2" sx={{ color: "#a8a8a8" }}>
-                Before
+                Current image
               </Typography>
 
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                {document
-                  ? `${document.width} × ${document.height}`
-                  : "—"}
+                {document ? `${document.width} × ${document.height}` : "—"}
               </Typography>
 
               <Typography variant="body2" sx={{ color: "#c7c7c7" }}>
@@ -340,7 +347,7 @@ function ResizeDialog({
 
             <Box>
               <Typography variant="body2" sx={{ color: "#a8a8a8" }}>
-                After
+                Result after resize
               </Typography>
 
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
@@ -414,7 +421,7 @@ function ResizeDialog({
                 htmlInput: {
                   min: unit === "percent" ? MIN_PERCENT : MIN_SIZE_PX,
                   max: unit === "percent" ? MAX_PERCENT : MAX_SIZE_PX,
-                  step: unit === "percent" ? 1 : 1,
+                  step: 1,
                 },
               }}
             />
@@ -430,7 +437,7 @@ function ResizeDialog({
                 htmlInput: {
                   min: unit === "percent" ? MIN_PERCENT : MIN_SIZE_PX,
                   max: unit === "percent" ? MAX_PERCENT : MAX_SIZE_PX,
-                  step: unit === "percent" ? 1 : 1,
+                  step: 1,
                 },
               }}
             />
@@ -466,6 +473,12 @@ function ResizeDialog({
         </Stack>
 
         <Box className="resize-dialog__actions">
+          <Button variant="outlined" color="inherit" onClick={handleReset}>
+            Reset
+          </Button>
+
+          <Box sx={{ flex: 1 }} />
+
           <Button variant="outlined" color="inherit" onClick={onCancel}>
             Cancel
           </Button>

@@ -255,6 +255,13 @@ function App() {
     );
   };
 
+  const resetLevelsState = () => {
+    setLevelsDialogState(defaultLevelsDialogState);
+    setLevelsSettings(createDefaultLevelsSettings());
+    setPreviewRenderSettings(createDefaultLevelsSettings());
+    setLevelsBaseImageData(null);
+  };
+
   const updateLevelsForSelectedChannel = (
     updater: (
       previous: LevelsSettingsMap[LevelsChannelTarget]
@@ -328,6 +335,7 @@ function App() {
       setSampledPixel(null);
       setChannels(defaultChannels);
       setDisplayScalePercent(calculateInitialDisplayScale(resizedImageData));
+      resetLevelsState();
       setErrorMessage("");
     } catch (error) {
       const message =
@@ -415,19 +423,13 @@ function App() {
   };
 
   const handleLevelsCancel = () => {
-    setLevelsDialogState(defaultLevelsDialogState);
-    setLevelsSettings(createDefaultLevelsSettings());
-    setPreviewRenderSettings(createDefaultLevelsSettings());
-    setLevelsBaseImageData(null);
+    resetLevelsState();
     setSampledPixel(null);
   };
 
   const handleLevelsApply = () => {
     if (!document || !levelsBaseImageData) {
-      setLevelsDialogState(defaultLevelsDialogState);
-      setLevelsSettings(createDefaultLevelsSettings());
-      setPreviewRenderSettings(createDefaultLevelsSettings());
-      setLevelsBaseImageData(null);
+      resetLevelsState();
       return;
     }
 
@@ -446,10 +448,7 @@ function App() {
       colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
     });
 
-    setLevelsDialogState(defaultLevelsDialogState);
-    setLevelsSettings(createDefaultLevelsSettings());
-    setPreviewRenderSettings(createDefaultLevelsSettings());
-    setLevelsBaseImageData(null);
+    resetLevelsState();
     setSampledPixel(null);
     setErrorMessage("");
   };
@@ -605,10 +604,7 @@ function App() {
     setChannels(defaultChannels);
     setSampledPixel(null);
     setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
-    setLevelsDialogState(defaultLevelsDialogState);
-    setLevelsSettings(createDefaultLevelsSettings());
-    setPreviewRenderSettings(createDefaultLevelsSettings());
-    setLevelsBaseImageData(null);
+    resetLevelsState();
     setResizeDialogOpen(false);
 
     if (canvasRef.current) {
@@ -655,10 +651,7 @@ function App() {
       setDisplayScalePercent(
         calculateInitialDisplayScale(loadedDocument.imageData)
       );
-      setLevelsDialogState(defaultLevelsDialogState);
-      setLevelsSettings(createDefaultLevelsSettings());
-      setPreviewRenderSettings(createDefaultLevelsSettings());
-      setLevelsBaseImageData(null);
+      resetLevelsState();
       setResizeDialogOpen(false);
     } catch (error) {
       const message =

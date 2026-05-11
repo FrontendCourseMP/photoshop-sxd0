@@ -52,19 +52,23 @@ function StatusBar({
         <Typography variant="body2" sx={{ color: "#9cdcfe", fontWeight: 500 }}>
           Status
         </Typography>
+
         <Typography variant="body2">File: {fileName || "—"}</Typography>
         <Typography variant="body2">Format: {format}</Typography>
         <Typography variant="body2">Width: {width}</Typography>
         <Typography variant="body2">Height: {height}</Typography>
         <Typography variant="body2">Color depth: {colorDepth}</Typography>
+
         <Typography variant="body2">
           Mask: {hasMask ? "present" : "absent"}
         </Typography>
+
         <Typography variant="body2">Tool: {toolMode}</Typography>
         <Typography variant="body2">Visible channels: {channelsSummary}</Typography>
 
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <Typography variant="body2">Scale: {scalePercent}%</Typography>
+          <Typography variant="body2">View scale: {scalePercent}%</Typography>
+
           <input
             type="range"
             min={scaleMin}
@@ -75,7 +79,8 @@ function StatusBar({
             onChange={handleScaleChange}
             style={{ width: 140 }}
           />
-          <Typography variant="body2">Interpolation: Bilinear</Typography>
+
+          <Typography variant="body2">View interpolation: Bilinear</Typography>
         </Stack>
       </Stack>
     </Box>
