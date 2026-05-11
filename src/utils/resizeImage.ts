@@ -36,54 +36,110 @@ function getSourceCoordinate(
   return (targetCoordinate * (sourceSize - 1)) / (targetSize - 1);
 }
 
-function getPixelOffset(
-  width: number,
-  x: number,
-  y: number,
-  channelOffset: number
-): number {
-  return (y * width + x) * 4 + channelOffset;
+function resizeNearest(
+  sourceImageData: ImageData,
+  targetWidth: number,
+  targetHeight: number
+): ImageData {
+  const sourceWidth = sourceImageData.width;
+  const sourceHeight = sourceImageData.height;
+  const sourceData = sourceImageData.data;
+  const output = new Uint8ClampedArray(targetWidth * targetHeight * 4);
+
+  const sourceXByTargetX = new Int32Array(targetWidth);
+
+  for (let targetX = 0; targetX < targetWidth; targetX += 1) {
+    const sourceX = getSourceCoordinate(targetX, sourceWidth, targetWidth);
+
+    sourceXByTargetX[targetX] = clamp(
+      Math.round(sourceX),
+      0,
+      sourceWidth - 1
+    );
+  }
+
+  for (let targetY = 0; targetY < targetHeight; targetY += 1) {
+    const sourceY = getSourceCoordinate(targetY, sourceHeight, targetHeight);
+    const nearestY = clamp(Math.round(sourceY), 0, sourceHeight - 1);
+    const sourceRowOffset = nearestY * sourceWidth * 4;
+    const targetRowOffset = targetY * targetWidth * 4;
+
+    for (let targetX = 0; targetX < targetWidth; targetX += 1) {
+      const sourceOffset = sourceRowOffset + sourceXByTargetX[targetX] * 4;
+      const targetOffset = targetRowOffset + targetX * 4;
+
+      output[targetOffset] = sourceData[sourceOffset];
+      output[targetOffset + 1] = sourceData[sourceOffset + 1];
+      output[targetOffset + 2] = sourceData[sourceOffset + 2];
+      output[targetOffset + 3] = sourceData[sourceOffset + 3];
+    }
+  }
+
+  return new ImageData(output, targetWidth, targetHeight);
 }
 
-function sampleNearest(
-  sourceData: Uint8ClampedArray,
-  sourceWidth: number,
-  sourceHeight: number,
-  sourceX: number,
-  sourceY: number,
-  channelOffset: number
-): number {
-  const nearestX = clamp(Math.round(sourceX), 0, sourceWidth - 1);
-  const nearestY = clamp(Math.round(sourceY), 0, sourceHeight - 1);
+function resizeBilinear(
+  sourceImageData: ImageData,
+  targetWidth: number,
+  targetHeight: number
+): ImageData {
+  const sourceWidth = sourceImageData.width;
+  const sourceHeight = sourceImageData.height;
+  const sourceData = sourceImageData.data;
+  const output = new Uint8ClampedArray(targetWidth * targetHeight * 4);
 
-  return sourceData[getPixelOffset(sourceWidth, nearestX, nearestY, channelOffset)];
-}
+  const x0ByTargetX = new Int32Array(targetWidth);
+  const x1ByTargetX = new Int32Array(targetWidth);
+  const dxByTargetX = new Float32Array(targetWidth);
 
-function sampleBilinear(
-  sourceData: Uint8ClampedArray,
-  sourceWidth: number,
-  sourceHeight: number,
-  sourceX: number,
-  sourceY: number,
-  channelOffset: number
-): number {
-  const x0 = clamp(Math.floor(sourceX), 0, sourceWidth - 1);
-  const y0 = clamp(Math.floor(sourceY), 0, sourceHeight - 1);
-  const x1 = clamp(x0 + 1, 0, sourceWidth - 1);
-  const y1 = clamp(y0 + 1, 0, sourceHeight - 1);
+  for (let targetX = 0; targetX < targetWidth; targetX += 1) {
+    const sourceX = getSourceCoordinate(targetX, sourceWidth, targetWidth);
+    const x0 = clamp(Math.floor(sourceX), 0, sourceWidth - 1);
+    const x1 = clamp(x0 + 1, 0, sourceWidth - 1);
 
-  const dx = sourceX - x0;
-  const dy = sourceY - y0;
+    x0ByTargetX[targetX] = x0;
+    x1ByTargetX[targetX] = x1;
+    dxByTargetX[targetX] = sourceX - x0;
+  }
 
-  const topLeft = sourceData[getPixelOffset(sourceWidth, x0, y0, channelOffset)];
-  const topRight = sourceData[getPixelOffset(sourceWidth, x1, y0, channelOffset)];
-  const bottomLeft = sourceData[getPixelOffset(sourceWidth, x0, y1, channelOffset)];
-  const bottomRight = sourceData[getPixelOffset(sourceWidth, x1, y1, channelOffset)];
+  for (let targetY = 0; targetY < targetHeight; targetY += 1) {
+    const sourceY = getSourceCoordinate(targetY, sourceHeight, targetHeight);
+    const y0 = clamp(Math.floor(sourceY), 0, sourceHeight - 1);
+    const y1 = clamp(y0 + 1, 0, sourceHeight - 1);
+    const dy = sourceY - y0;
 
-  const top = topLeft * (1 - dx) + topRight * dx;
-  const bottom = bottomLeft * (1 - dx) + bottomRight * dx;
+    const sourceTopRowOffset = y0 * sourceWidth * 4;
+    const sourceBottomRowOffset = y1 * sourceWidth * 4;
+    const targetRowOffset = targetY * targetWidth * 4;
 
-  return Math.round(top * (1 - dy) + bottom * dy);
+    for (let targetX = 0; targetX < targetWidth; targetX += 1) {
+      const x0 = x0ByTargetX[targetX];
+      const x1 = x1ByTargetX[targetX];
+      const dx = dxByTargetX[targetX];
+
+      const topLeftOffset = sourceTopRowOffset + x0 * 4;
+      const topRightOffset = sourceTopRowOffset + x1 * 4;
+      const bottomLeftOffset = sourceBottomRowOffset + x0 * 4;
+      const bottomRightOffset = sourceBottomRowOffset + x1 * 4;
+      const targetOffset = targetRowOffset + targetX * 4;
+
+      for (let channelOffset = 0; channelOffset < 4; channelOffset += 1) {
+        const topLeft = sourceData[topLeftOffset + channelOffset];
+        const topRight = sourceData[topRightOffset + channelOffset];
+        const bottomLeft = sourceData[bottomLeftOffset + channelOffset];
+        const bottomRight = sourceData[bottomRightOffset + channelOffset];
+
+        const top = topLeft * (1 - dx) + topRight * dx;
+        const bottom = bottomLeft * (1 - dx) + bottomRight * dx;
+
+        output[targetOffset + channelOffset] = Math.round(
+          top * (1 - dy) + bottom * dy
+        );
+      }
+    }
+  }
+
+  return new ImageData(output, targetWidth, targetHeight);
 }
 
 export function resizeImageData(
@@ -94,51 +150,18 @@ export function resizeImageData(
   const targetWidth = validateDimension(dimensions.width, "Width");
   const targetHeight = validateDimension(dimensions.height, "Height");
 
-  const sourceWidth = sourceImageData.width;
-  const sourceHeight = sourceImageData.height;
-  const sourceData = sourceImageData.data;
-
-  if (sourceWidth === targetWidth && sourceHeight === targetHeight) {
-    return new ImageData(
-      new Uint8ClampedArray(sourceData),
-      sourceWidth,
-      sourceHeight
-    );
+  if (
+    sourceImageData.width === targetWidth &&
+    sourceImageData.height === targetHeight
+  ) {
+    return sourceImageData;
   }
 
-  const output = new Uint8ClampedArray(targetWidth * targetHeight * 4);
-
-  for (let targetY = 0; targetY < targetHeight; targetY += 1) {
-    const sourceY = getSourceCoordinate(targetY, sourceHeight, targetHeight);
-
-    for (let targetX = 0; targetX < targetWidth; targetX += 1) {
-      const sourceX = getSourceCoordinate(targetX, sourceWidth, targetWidth);
-      const targetOffset = (targetY * targetWidth + targetX) * 4;
-
-      for (let channelOffset = 0; channelOffset < 4; channelOffset += 1) {
-        output[targetOffset + channelOffset] =
-          interpolationMethod === "nearest"
-            ? sampleNearest(
-                sourceData,
-                sourceWidth,
-                sourceHeight,
-                sourceX,
-                sourceY,
-                channelOffset
-              )
-            : sampleBilinear(
-                sourceData,
-                sourceWidth,
-                sourceHeight,
-                sourceX,
-                sourceY,
-                channelOffset
-              );
-      }
-    }
+  if (interpolationMethod === "nearest") {
+    return resizeNearest(sourceImageData, targetWidth, targetHeight);
   }
 
-  return new ImageData(output, targetWidth, targetHeight);
+  return resizeBilinear(sourceImageData, targetWidth, targetHeight);
 }
 
 export function calculateDimensionsFromPercent(
@@ -182,4 +205,20 @@ export function calculateScalePercentToFit(
   const scalePercent = Math.floor(Math.min(scaleByWidth, scaleByHeight) * 100);
 
   return clamp(scalePercent, SCALE_PERCENT_MIN, SCALE_PERCENT_MAX);
+}
+
+export function calculateMaxScalePercentForPixelLimit(
+  sourceWidth: number,
+  sourceHeight: number,
+  maxPixels: number
+): number {
+  const sourcePixels = sourceWidth * sourceHeight;
+
+  if (sourcePixels <= 0 || maxPixels <= 0) {
+    return SCALE_PERCENT_MAX;
+  }
+
+  const maxScale = Math.floor(Math.sqrt(maxPixels / sourcePixels) * 100);
+
+  return clamp(maxScale, SCALE_PERCENT_MIN, SCALE_PERCENT_MAX);
 }

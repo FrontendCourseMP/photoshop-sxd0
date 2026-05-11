@@ -14,6 +14,7 @@ import type {
   ToolMode,
 } from "../types/image";
 import type {
+  HistogramData,
   LevelsChannelTarget,
   LevelsDialogState,
   LevelsHistogramMode,
@@ -41,6 +42,7 @@ import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
 import {
   calculateDimensionsFromPercent,
+  calculateMaxScalePercentForPixelLimit,
   calculateScalePercentToFit,
   resizeImageData,
 } from "../utils/resizeImage";
@@ -70,6 +72,57 @@ function getUpdatedColorDepth(
   return hasAlpha ? "32-bit RGBA" : "24-bit RGB";
 }
 
+function createEmptyHistogram(): HistogramData {
+  return {
+    bins: new Array<number>(256).fill(0),
+    maxValue: 0,
+    totalPixels: 0,
+  };
+}
+
+function areAllChannelsVisible(channels: ChannelVisibility): boolean {
+  return channels.red && channels.green && channels.blue && channels.alpha;
+}
+
+function getVisiblePixelValues(
+  red: number,
+  green: number,
+  blue: number,
+  alpha: number,
+  channels: ChannelVisibility
+): Pick<SampledPixelInfo, "r" | "g" | "b" | "a"> {
+  const alphaOnly =
+    channels.alpha &&
+    !channels.red &&
+    !channels.green &&
+    !channels.blue;
+
+  if (alphaOnly) {
+    return {
+      r: alpha,
+      g: alpha,
+      b: alpha,
+      a: 255,
+    };
+  }
+
+  if (!channels.red && !channels.green && !channels.blue && !channels.alpha) {
+    return {
+      r: 0,
+      g: 0,
+      b: 0,
+      a: 255,
+    };
+  }
+
+  return {
+    r: channels.red ? red : 0,
+    g: channels.green ? green : 0,
+    b: channels.blue ? blue : 0,
+    a: channels.alpha ? alpha : 255,
+  };
+}
+
 const defaultChannels: ChannelVisibility = {
   red: true,
   green: true,
@@ -85,6 +138,7 @@ const defaultLevelsDialogState: LevelsDialogState = {
 };
 
 const DISPLAY_FIT_PADDING_PX = 50;
+const MAX_VIEW_PIXELS = 10_000_000;
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -114,6 +168,24 @@ function App() {
   const [levelsBaseImageData, setLevelsBaseImageData] =
     useState<ImageData | null>(null);
   const [resizeDialogOpen, setResizeDialogOpen] = useState(false);
+
+  const displayScaleMax = useMemo(() => {
+    if (!document) {
+      return SCALE_PERCENT_MAX;
+    }
+
+    return calculateMaxScalePercentForPixelLimit(
+      document.width,
+      document.height,
+      MAX_VIEW_PIXELS
+    );
+  }, [document]);
+
+  useEffect(() => {
+    if (displayScalePercent > displayScaleMax) {
+      setDisplayScalePercent(displayScaleMax);
+    }
+  }, [displayScalePercent, displayScaleMax]);
 
   useEffect(() => {
     if (!levelsDialogState.isOpen || !levelsDialogState.previewEnabled) {
@@ -158,39 +230,45 @@ function App() {
 
   const displayedImageData = levelsPreviewImageData ?? document?.imageData ?? null;
 
-  const renderedImageData = useMemo(() => {
+  const scaledDisplayImageData = useMemo(() => {
     if (!displayedImageData) {
       return null;
     }
 
-    return applyChannelVisibility(displayedImageData, channels);
-  }, [displayedImageData, channels]);
+    const safeScalePercent = clamp(
+      displayScalePercent,
+      SCALE_PERCENT_MIN,
+      displayScaleMax
+    );
+
+    const dimensions = calculateDimensionsFromPercent(
+      displayedImageData.width,
+      displayedImageData.height,
+      safeScalePercent
+    );
+
+    return resizeImageData(displayedImageData, dimensions, "bilinear");
+  }, [displayedImageData, displayScalePercent, displayScaleMax]);
 
   const scaledRenderedImageData = useMemo(() => {
-    if (!renderedImageData) {
+    if (!scaledDisplayImageData) {
       return null;
     }
 
-    const dimensions = calculateDimensionsFromPercent(
-      renderedImageData.width,
-      renderedImageData.height,
-      displayScalePercent
-    );
+    if (areAllChannelsVisible(channels)) {
+      return scaledDisplayImageData;
+    }
 
-    return resizeImageData(renderedImageData, dimensions, "bilinear");
-  }, [renderedImageData, displayScalePercent]);
+    return applyChannelVisibility(scaledDisplayImageData, channels);
+  }, [scaledDisplayImageData, channels]);
 
   const levelsHistogram = useMemo(() => {
-    if (!document) {
-      return {
-        bins: new Array<number>(256).fill(0),
-        maxValue: 0,
-        totalPixels: 0,
-      };
+    if (!document || !levelsDialogState.isOpen) {
+      return createEmptyHistogram();
     }
 
     return computeHistogram(document.imageData, levelsDialogState.selectedChannel);
-  }, [document, levelsDialogState.selectedChannel]);
+  }, [document, levelsDialogState.isOpen, levelsDialogState.selectedChannel]);
 
   const channelsSummary = useMemo(() => {
     if (!document) {
@@ -246,13 +324,21 @@ function App() {
     const viewportHeight =
       canvasViewportRef.current?.clientHeight ?? window.innerHeight;
 
-    return calculateScalePercentToFit(
+    const fitScale = calculateScalePercentToFit(
       imageData.width,
       imageData.height,
       viewportWidth,
       viewportHeight,
       DISPLAY_FIT_PADDING_PX
     );
+
+    const maxSafeScale = calculateMaxScalePercentForPixelLimit(
+      imageData.width,
+      imageData.height,
+      MAX_VIEW_PIXELS
+    );
+
+    return clamp(fitScale, SCALE_PERCENT_MIN, maxSafeScale);
   };
 
   const resetLevelsState = () => {
@@ -283,7 +369,7 @@ function App() {
     const nextScale = clamp(
       Math.round(value),
       SCALE_PERCENT_MIN,
-      SCALE_PERCENT_MAX
+      displayScaleMax
     );
 
     setDisplayScalePercent(nextScale);
@@ -320,7 +406,9 @@ function App() {
       );
 
       const hasAlpha = imageDataHasAlpha(resizedImageData);
+      const nextDisplayScale = calculateInitialDisplayScale(resizedImageData);
 
+      setDisplayScalePercent(nextDisplayScale);
       setDocument({
         ...document,
         width: resizedImageData.width,
@@ -334,7 +422,6 @@ function App() {
       setToolMode("none");
       setSampledPixel(null);
       setChannels(defaultChannels);
-      setDisplayScalePercent(calculateInitialDisplayScale(resizedImageData));
       resetLevelsState();
       setErrorMessage("");
     } catch (error) {
@@ -488,7 +575,7 @@ function App() {
   const handleCanvasClick = (event: ReactMouseEvent<HTMLCanvasElement>) => {
     if (
       toolMode !== "eyedropper" ||
-      !renderedImageData ||
+      !displayedImageData ||
       !scaledRenderedImageData
     ) {
       return;
@@ -503,38 +590,43 @@ function App() {
 
       const sourceX = clamp(
         Math.floor(
-          (canvasCoordinates.x * renderedImageData.width) /
+          (canvasCoordinates.x * displayedImageData.width) /
             scaledRenderedImageData.width
         ),
         0,
-        renderedImageData.width - 1
+        displayedImageData.width - 1
       );
 
       const sourceY = clamp(
         Math.floor(
-          (canvasCoordinates.y * renderedImageData.height) /
+          (canvasCoordinates.y * displayedImageData.height) /
             scaledRenderedImageData.height
         ),
         0,
-        renderedImageData.height - 1
+        displayedImageData.height - 1
       );
 
-      const x = sourceX;
-      const y = sourceY;
-      const pixelIndex = (y * renderedImageData.width + x) * 4;
-      const red = renderedImageData.data[pixelIndex];
-      const green = renderedImageData.data[pixelIndex + 1];
-      const blue = renderedImageData.data[pixelIndex + 2];
-      const alpha = renderedImageData.data[pixelIndex + 3];
-      const lab = rgbToLab(red, green, blue);
+      const pixelIndex = (sourceY * displayedImageData.width + sourceX) * 4;
+      const red = displayedImageData.data[pixelIndex];
+      const green = displayedImageData.data[pixelIndex + 1];
+      const blue = displayedImageData.data[pixelIndex + 2];
+      const alpha = displayedImageData.data[pixelIndex + 3];
+      const visiblePixel = getVisiblePixelValues(
+        red,
+        green,
+        blue,
+        alpha,
+        channels
+      );
+      const lab = rgbToLab(visiblePixel.r, visiblePixel.g, visiblePixel.b);
 
       setSampledPixel({
-        x,
-        y,
-        r: red,
-        g: green,
-        b: blue,
-        a: alpha,
+        x: sourceX,
+        y: sourceY,
+        r: visiblePixel.r,
+        g: visiblePixel.g,
+        b: visiblePixel.b,
+        a: visiblePixel.a,
         lab,
       });
 
@@ -643,14 +735,16 @@ function App() {
           ? decodeGB7(await selectedFile.arrayBuffer(), selectedFile.name)
           : await loadStandardImage(selectedFile);
 
+      const initialDisplayScale = calculateInitialDisplayScale(
+        loadedDocument.imageData
+      );
+
+      setDisplayScalePercent(initialDisplayScale);
       setDocument(loadedDocument);
       setErrorMessage("");
       setToolMode("none");
       setChannels(defaultChannels);
       setSampledPixel(null);
-      setDisplayScalePercent(
-        calculateInitialDisplayScale(loadedDocument.imageData)
-      );
       resetLevelsState();
       setResizeDialogOpen(false);
     } catch (error) {
@@ -661,6 +755,7 @@ function App() {
 
       setErrorMessage(message);
       clearDocument();
+      setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
     } finally {
       event.target.value = "";
     }
@@ -721,7 +816,7 @@ function App() {
         hasImage={hasImage}
         scalePercent={displayScalePercent}
         scaleMin={SCALE_PERCENT_MIN}
-        scaleMax={SCALE_PERCENT_MAX}
+        scaleMax={displayScaleMax}
         onScalePercentChange={handleDisplayScaleChange}
       />
 
