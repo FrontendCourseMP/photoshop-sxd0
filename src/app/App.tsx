@@ -7,6 +7,7 @@ import Sidebar from "../components/Sidebar";
 import StatusBar from "../components/StatusBar";
 import LevelsDialog from "../components/LevelsDialog";
 import ResizeDialog from "../components/ResizeDialog";
+import FiltersDialog from "../components/FiltersDialog";
 import useImageDocument from "../hooks/useImageDocument";
 import type {
   ChannelVisibility,
@@ -30,8 +31,11 @@ import {
   SCALE_PERCENT_MAX,
   SCALE_PERCENT_MIN,
 } from "../types/scale";
+import type { FilterSettings } from "../types/filters";
+import { createDefaultFilterSettings } from "../types/filters";
 import { cloneImageData, imageDataHasAlpha } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
+import { applyConvolutionFilterToImageData } from "../utils/convolutionFilter";
 import { applyLevelsToImageData } from "../utils/applyLevels";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
@@ -167,7 +171,15 @@ function App() {
     useState<LevelsSettingsMap>(createDefaultLevelsSettings());
   const [levelsBaseImageData, setLevelsBaseImageData] =
     useState<ImageData | null>(null);
+
   const [resizeDialogOpen, setResizeDialogOpen] = useState(false);
+
+  const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+  const [filterSettings, setFilterSettings] = useState<FilterSettings>(
+    createDefaultFilterSettings()
+  );
+  const [filterBaseImageData, setFilterBaseImageData] =
+    useState<ImageData | null>(null);
 
   const displayScaleMax = useMemo(() => {
     if (!document) {
@@ -228,7 +240,24 @@ function App() {
     previewRenderSettings,
   ]);
 
-  const displayedImageData = levelsPreviewImageData ?? document?.imageData ?? null;
+  const filterPreviewImageData = useMemo(() => {
+    if (
+      !filterBaseImageData ||
+      !filtersDialogOpen ||
+      !filterSettings.previewEnabled
+    ) {
+      return null;
+    }
+
+    return applyConvolutionFilterToImageData(filterBaseImageData, {
+      kernel: filterSettings.kernel,
+      channels: filterSettings.channels,
+      edgeHandling: filterSettings.edgeHandling,
+    });
+  }, [filterBaseImageData, filtersDialogOpen, filterSettings]);
+
+  const displayedImageData =
+    filterPreviewImageData ?? levelsPreviewImageData ?? document?.imageData ?? null;
 
   const scaledDisplayImageData = useMemo(() => {
     if (!displayedImageData) {
@@ -348,6 +377,12 @@ function App() {
     setLevelsBaseImageData(null);
   };
 
+  const resetFiltersState = () => {
+    setFiltersDialogOpen(false);
+    setFilterSettings(createDefaultFilterSettings());
+    setFilterBaseImageData(null);
+  };
+
   const updateLevelsForSelectedChannel = (
     updater: (
       previous: LevelsSettingsMap[LevelsChannelTarget]
@@ -423,10 +458,75 @@ function App() {
       setSampledPixel(null);
       setChannels(defaultChannels);
       resetLevelsState();
+      resetFiltersState();
       setErrorMessage("");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to resize image.";
+
+      setErrorMessage(message);
+    }
+  };
+
+  const handleOpenFilters = () => {
+    if (!document) {
+      return;
+    }
+
+    setToolMode("none");
+    setSampledPixel(null);
+    resetLevelsState();
+    setFilterSettings(createDefaultFilterSettings());
+    setFilterBaseImageData(cloneImageData(document.imageData));
+    setFiltersDialogOpen(true);
+  };
+
+  const handleFilterSettingsChange = (settings: FilterSettings) => {
+    setFilterSettings(settings);
+    setSampledPixel(null);
+  };
+
+  const handleFiltersReset = () => {
+    setFilterSettings(createDefaultFilterSettings());
+    setSampledPixel(null);
+  };
+
+  const handleFiltersCancel = () => {
+    resetFiltersState();
+    setSampledPixel(null);
+  };
+
+  const handleFiltersApply = () => {
+    if (!document || !filterBaseImageData) {
+      resetFiltersState();
+      return;
+    }
+
+    try {
+      const filteredImageData = applyConvolutionFilterToImageData(
+        filterBaseImageData,
+        {
+          kernel: filterSettings.kernel,
+          channels: filterSettings.channels,
+          edgeHandling: filterSettings.edgeHandling,
+        }
+      );
+
+      const hasAlpha = imageDataHasAlpha(filteredImageData);
+
+      setDocument({
+        ...document,
+        imageData: filteredImageData,
+        hasMask: hasAlpha,
+        colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
+      });
+
+      resetFiltersState();
+      setSampledPixel(null);
+      setErrorMessage("");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to apply filter.";
 
       setErrorMessage(message);
     }
@@ -439,6 +539,7 @@ function App() {
 
     const defaults = createDefaultLevelsSettings();
 
+    resetFiltersState();
     setLevelsSettings(defaults);
     setPreviewRenderSettings(defaults);
     setLevelsBaseImageData(cloneImageData(document.imageData));
@@ -697,6 +798,7 @@ function App() {
     setSampledPixel(null);
     setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
     resetLevelsState();
+    resetFiltersState();
     setResizeDialogOpen(false);
 
     if (canvasRef.current) {
@@ -746,6 +848,7 @@ function App() {
       setChannels(defaultChannels);
       setSampledPixel(null);
       resetLevelsState();
+      resetFiltersState();
       setResizeDialogOpen(false);
     } catch (error) {
       const message =
@@ -777,6 +880,7 @@ function App() {
         onOpen={handleOpen}
         onOpenLevels={handleOpenLevels}
         onOpenResize={handleOpenResize}
+        onOpenFilters={handleOpenFilters}
         onExportPng={handleExportPng}
         onExportJpg={handleExportJpg}
         onExportGb7={handleExportGb7}
@@ -842,6 +946,15 @@ function App() {
         document={document}
         onCancel={handleResizeCancel}
         onApply={handleResizeApply}
+      />
+
+      <FiltersDialog
+        open={filtersDialogOpen}
+        settings={filterSettings}
+        onChange={handleFilterSettingsChange}
+        onReset={handleFiltersReset}
+        onCancel={handleFiltersCancel}
+        onApply={handleFiltersApply}
       />
     </Box>
   );

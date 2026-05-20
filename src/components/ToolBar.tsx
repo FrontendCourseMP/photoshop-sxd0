@@ -11,6 +11,7 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import ColorizeOutlinedIcon from "@mui/icons-material/ColorizeOutlined";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import AspectRatioOutlinedIcon from "@mui/icons-material/AspectRatioOutlined";
+import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import type { ToolMode } from "../types/image";
 
 interface ToolbarProps {
@@ -19,6 +20,7 @@ interface ToolbarProps {
   onOpen: () => void;
   onOpenLevels: () => void;
   onOpenResize: () => void;
+  onOpenFilters: () => void;
   onExportPng: () => void;
   onExportJpg: () => void;
   onExportGb7: () => void;
@@ -32,6 +34,7 @@ function Toolbar({
   onOpen,
   onOpenLevels,
   onOpenResize,
+  onOpenFilters,
   onExportPng,
   onExportJpg,
   onExportGb7,
@@ -85,6 +88,15 @@ function Toolbar({
             onClick={onOpenResize}
           >
             Resize
+          </Button>
+
+          <Button
+            variant="outlined"
+            startIcon={<FilterAltOutlinedIcon />}
+            disabled={!hasImage}
+            onClick={onOpenFilters}
+          >
+            Filters
           </Button>
 
           <Button
