@@ -36,6 +36,7 @@ import { createDefaultFilterSettings } from "../types/filters";
 import { cloneImageData, imageDataHasAlpha } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { applyConvolutionFilterToImageData } from "../utils/convolutionFilter";
+import { applyMedianFilterToImageData } from "../utils/medianFilter";
 import { applyLevelsToImageData } from "../utils/applyLevels";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
@@ -125,6 +126,24 @@ function getVisiblePixelValues(
     b: channels.blue ? blue : 0,
     a: channels.alpha ? alpha : 255,
   };
+}
+
+function applyFilterToImageData(
+  imageData: ImageData,
+  settings: FilterSettings
+): ImageData {
+  if (settings.mode === "median") {
+    return applyMedianFilterToImageData(imageData, {
+      channels: settings.channels,
+      edgeHandling: settings.edgeHandling,
+    });
+  }
+
+  return applyConvolutionFilterToImageData(imageData, {
+    kernel: settings.kernel,
+    channels: settings.channels,
+    edgeHandling: settings.edgeHandling,
+  });
 }
 
 const defaultChannels: ChannelVisibility = {
@@ -249,11 +268,7 @@ function App() {
       return null;
     }
 
-    return applyConvolutionFilterToImageData(filterBaseImageData, {
-      kernel: filterSettings.kernel,
-      channels: filterSettings.channels,
-      edgeHandling: filterSettings.edgeHandling,
-    });
+    return applyFilterToImageData(filterBaseImageData, filterSettings);
   }, [filterBaseImageData, filtersDialogOpen, filterSettings]);
 
   const displayedImageData =
@@ -503,13 +518,9 @@ function App() {
     }
 
     try {
-      const filteredImageData = applyConvolutionFilterToImageData(
+      const filteredImageData = applyFilterToImageData(
         filterBaseImageData,
-        {
-          kernel: filterSettings.kernel,
-          channels: filterSettings.channels,
-          edgeHandling: filterSettings.edgeHandling,
-        }
+        filterSettings
       );
 
       const hasAlpha = imageDataHasAlpha(filteredImageData);

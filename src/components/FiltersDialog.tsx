@@ -14,6 +14,7 @@ import {
 import type {
   EdgeHandlingStrategy,
   FilterChannel,
+  FilterMode,
   FilterSettings,
   Kernel3x3,
   KernelPresetId,
@@ -51,6 +52,46 @@ const FILTER_CHANNELS: Array<{
   },
 ];
 
+const nativeSelectSx = {
+  color: "#f5f5f5",
+  "& .MuiNativeSelect-icon": {
+    color: "#f5f5f5",
+  },
+  "&:before": {
+    borderBottomColor: "#3c3c3c",
+  },
+  "&:after": {
+    borderBottomColor: "#2196f3",
+  },
+  "&:hover:not(.Mui-disabled):before": {
+    borderBottomColor: "#6a6a6a",
+  },
+};
+
+const textFieldSx = {
+  "& .MuiInputBase-input": {
+    color: "#f5f5f5",
+  },
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "#141414",
+    "& fieldset": {
+      borderColor: "#2f2f2f",
+    },
+    "&:hover fieldset": {
+      borderColor: "#555",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#2196f3",
+    },
+    "&.Mui-disabled": {
+      backgroundColor: "#101010",
+    },
+  },
+  "& .MuiInputBase-input.Mui-disabled": {
+    WebkitTextFillColor: "#777",
+  },
+};
+
 function parseKernelValue(value: string): number {
   const parsedValue = Number(value.replace(",", "."));
 
@@ -67,6 +108,14 @@ function formatKernelValue(value: number): string {
   }
 
   return String(Number(value.toFixed(4)));
+}
+
+function getModeDescription(mode: FilterMode): string {
+  if (mode === "median") {
+    return "Median filter replaces each selected channel value with the median value from a 3×3 neighborhood. It is useful for removing isolated noise.";
+  }
+
+  return "Kernel mode applies a 3×3 convolution matrix to selected channels. Presets fill the matrix, but every value can be edited manually.";
 }
 
 function FiltersDialog({
@@ -96,6 +145,16 @@ function FiltersDialog({
   }, [open]);
 
   const selectedPreset = getKernelPreset(settings.presetId);
+  const kernelControlsDisabled = settings.mode === "median";
+  const identitySelected =
+    settings.mode === "kernel" && settings.presetId === "identity";
+
+  const handleModeChange = (mode: FilterMode) => {
+    onChange({
+      ...settings,
+      mode,
+    });
+  };
 
   const handlePresetChange = (presetId: KernelPresetId) => {
     const preset = getKernelPreset(presetId);
@@ -160,28 +219,27 @@ function FiltersDialog({
           </Typography>
 
           <Typography variant="body2" sx={{ color: "#a8a8a8" }}>
-            Apply a 3×3 convolution kernel to selected image channels.
+            Apply convolution kernels and median filtering to selected image
+            channels.
           </Typography>
         </Box>
 
-        <Stack spacing={2.5}>
+        <Stack spacing={2.25}>
           <Stack direction="row" spacing={2}>
             <FormControl fullWidth size="small">
               <Typography variant="body2" sx={{ mb: 0.75 }}>
-                Preset
+                Filter mode
               </Typography>
 
               <NativeSelect
-                value={settings.presetId}
+                value={settings.mode}
+                sx={nativeSelectSx}
                 onChange={(event) =>
-                  handlePresetChange(event.target.value as KernelPresetId)
+                  handleModeChange(event.target.value as FilterMode)
                 }
               >
-                {KERNEL_PRESETS.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
+                <option value="kernel">Kernel 3×3</option>
+                <option value="median">Median 3×3</option>
               </NativeSelect>
             </FormControl>
 
@@ -192,6 +250,7 @@ function FiltersDialog({
 
               <NativeSelect
                 value={settings.edgeHandling}
+                sx={nativeSelectSx}
                 onChange={(event) =>
                   handleEdgeHandlingChange(
                     event.target.value as EdgeHandlingStrategy
@@ -207,13 +266,43 @@ function FiltersDialog({
 
           <Box className="filters-dialog__preset-description">
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {selectedPreset.label}
+              {settings.mode === "median" ? "Median 3×3" : selectedPreset.label}
             </Typography>
 
             <Typography variant="body2" sx={{ color: "#c7c7c7" }}>
-              {selectedPreset.description}
+              {settings.mode === "median"
+                ? getModeDescription("median")
+                : selectedPreset.description}
             </Typography>
+
+            {identitySelected && (
+              <Typography variant="body2" sx={{ color: "#ffcc80", mt: 0.5 }}>
+                Identity is the initial kernel and does not change the image.
+                Choose Sharpen, Gaussian blur, Prewitt X or Prewitt Y to see a
+                visible preview.
+              </Typography>
+            )}
           </Box>
+
+          <FormControl fullWidth size="small" disabled={kernelControlsDisabled}>
+            <Typography variant="body2" sx={{ mb: 0.75 }}>
+              Kernel preset
+            </Typography>
+
+            <NativeSelect
+              value={settings.presetId}
+              sx={nativeSelectSx}
+              onChange={(event) =>
+                handlePresetChange(event.target.value as KernelPresetId)
+              }
+            >
+              {KERNEL_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </FormControl>
 
           <Box>
             <Typography variant="body2" sx={{ mb: 1 }}>
@@ -227,6 +316,8 @@ function FiltersDialog({
                   type="number"
                   size="small"
                   value={formatKernelValue(value)}
+                  disabled={kernelControlsDisabled}
+                  sx={textFieldSx}
                   onChange={(event) =>
                     handleKernelValueChange(index, event.target.value)
                   }
@@ -238,6 +329,13 @@ function FiltersDialog({
                 />
               ))}
             </Box>
+
+            {settings.mode === "median" && (
+              <Typography variant="body2" sx={{ color: "#a8a8a8", mt: 1 }}>
+                Median mode does not use kernel coefficients. It sorts 3×3
+                neighborhood values and takes the middle value.
+              </Typography>
+            )}
           </Box>
 
           <Box>
@@ -270,13 +368,14 @@ function FiltersDialog({
                 onChange={handlePreviewChange}
               />
             }
-            label="Preview"
+            label="Live preview on main canvas"
           />
 
           <Box className="filters-dialog__note">
             <Typography variant="body2" sx={{ color: "#c7c7c7" }}>
-              The filter keeps the original image size. Border pixels are
-              processed using the selected edge handling strategy.
+              {settings.previewEnabled
+                ? "Preview temporarily applies the selected filter to the main canvas behind this dialog. Close cancels the preview. Apply saves the result."
+                : "Preview is disabled. The main canvas shows the image before filtering until you press Apply."}
             </Typography>
           </Box>
         </Stack>
