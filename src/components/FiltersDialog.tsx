@@ -6,6 +6,7 @@ import {
   Checkbox,
   FormControl,
   FormControlLabel,
+  LinearProgress,
   NativeSelect,
   Stack,
   TextField,
@@ -24,6 +25,8 @@ import { KERNEL_PRESETS, getKernelPreset } from "../types/filters";
 interface FiltersDialogProps {
   open: boolean;
   settings: FilterSettings;
+  processing: boolean;
+  progress: number;
   onChange: (settings: FilterSettings) => void;
   onReset: () => void;
   onCancel: () => void;
@@ -121,6 +124,8 @@ function getModeDescription(mode: FilterMode): string {
 function FiltersDialog({
   open,
   settings,
+  processing,
+  progress,
   onChange,
   onReset,
   onCancel,
@@ -371,6 +376,16 @@ function FiltersDialog({
             label="Live preview on main canvas"
           />
 
+          {processing && (
+            <Box className="filters-dialog__processing">
+              <Typography variant="body2" sx={{ color: "#c7c7c7", mb: 1 }}>
+                Processing preview... {progress}%
+              </Typography>
+
+              <LinearProgress variant="determinate" value={progress} />
+            </Box>
+          )}
+
           <Box className="filters-dialog__note">
             <Typography variant="body2" sx={{ color: "#c7c7c7" }}>
               {settings.previewEnabled
@@ -391,7 +406,7 @@ function FiltersDialog({
             Close
           </Button>
 
-          <Button variant="contained" onClick={onApply}>
+          <Button variant="contained" disabled={processing} onClick={onApply}>
             Apply
           </Button>
         </Box>

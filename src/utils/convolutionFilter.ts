@@ -10,6 +10,11 @@ export interface ConvolutionFilterOptions {
   edgeHandling: EdgeHandlingStrategy;
 }
 
+export interface AsyncConvolutionFilterOptions extends ConvolutionFilterOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: number) => void;
+}
+
 function clampByte(value: number): number {
   if (Number.isNaN(value)) {
     return 0;
@@ -69,6 +74,18 @@ function hasSelectedChannels(channels: FilterChannels): boolean {
   return channels.red || channels.green || channels.blue || channels.alpha;
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new DOMException("Filtering was cancelled.", "AbortError");
+  }
+}
+
+function waitForBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+
 export function applyConvolutionFilterToImageData(
   sourceImageData: ImageData,
   options: ConvolutionFilterOptions
@@ -116,6 +133,68 @@ export function applyConvolutionFilterToImageData(
       }
     }
   }
+
+  return new ImageData(output, width, height);
+}
+
+export async function applyConvolutionFilterToImageDataAsync(
+  sourceImageData: ImageData,
+  options: AsyncConvolutionFilterOptions
+): Promise<ImageData> {
+  const { kernel, channels, edgeHandling, signal, onProgress } = options;
+  const { width, height, data } = sourceImageData;
+  const output = new Uint8ClampedArray(data);
+
+  if (!hasSelectedChannels(channels)) {
+    return new ImageData(output, width, height);
+  }
+
+  const rowsPerChunk = height > 1600 ? 8 : 16;
+
+  for (let y = 0; y < height; y += 1) {
+    throwIfAborted(signal);
+
+    for (let x = 0; x < width; x += 1) {
+      const targetOffset = (y * width + x) * 4;
+
+      for (let channelOffset = 0; channelOffset < 4; channelOffset += 1) {
+        const channel = getChannelOffset(channelOffset);
+
+        if (!channels[channel]) {
+          continue;
+        }
+
+        let accumulator = 0;
+        let kernelIndex = 0;
+
+        for (let kernelY = -1; kernelY <= 1; kernelY += 1) {
+          for (let kernelX = -1; kernelX <= 1; kernelX += 1) {
+            const sourceValue = getPaddingValue(
+              data,
+              width,
+              height,
+              x + kernelX,
+              y + kernelY,
+              channelOffset,
+              edgeHandling
+            );
+
+            accumulator += sourceValue * kernel[kernelIndex];
+            kernelIndex += 1;
+          }
+        }
+
+        output[targetOffset + channelOffset] = clampByte(accumulator);
+      }
+    }
+
+    if (y % rowsPerChunk === 0) {
+      onProgress?.(Math.round(((y + 1) / height) * 100));
+      await waitForBrowser();
+    }
+  }
+
+  onProgress?.(100);
 
   return new ImageData(output, width, height);
 }

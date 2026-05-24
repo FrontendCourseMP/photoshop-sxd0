@@ -35,8 +35,8 @@ import type { FilterSettings } from "../types/filters";
 import { createDefaultFilterSettings } from "../types/filters";
 import { cloneImageData, imageDataHasAlpha } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
-import { applyConvolutionFilterToImageData } from "../utils/convolutionFilter";
-import { applyMedianFilterToImageData } from "../utils/medianFilter";
+import { applyConvolutionFilterToImageDataAsync } from "../utils/convolutionFilter";
+import { applyMedianFilterToImageDataAsync } from "../utils/medianFilter";
 import { applyLevelsToImageData } from "../utils/applyLevels";
 import { decodeGB7 } from "../utils/decodeGB7";
 import { exportImageAsGB7 } from "../utils/encodeGB7";
@@ -128,22 +128,32 @@ function getVisiblePixelValues(
   };
 }
 
-function applyFilterToImageData(
+async function applyFilterToImageDataAsync(
   imageData: ImageData,
-  settings: FilterSettings
-): ImageData {
+  settings: FilterSettings,
+  signal: AbortSignal,
+  onProgress: (progress: number) => void
+): Promise<ImageData> {
   if (settings.mode === "median") {
-    return applyMedianFilterToImageData(imageData, {
+    return applyMedianFilterToImageDataAsync(imageData, {
       channels: settings.channels,
       edgeHandling: settings.edgeHandling,
+      signal,
+      onProgress,
     });
   }
 
-  return applyConvolutionFilterToImageData(imageData, {
+  return applyConvolutionFilterToImageDataAsync(imageData, {
     kernel: settings.kernel,
     channels: settings.channels,
     edgeHandling: settings.edgeHandling,
+    signal,
+    onProgress,
   });
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 const defaultChannels: ChannelVisibility = {
@@ -167,6 +177,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const filterAbortControllerRef = useRef<AbortController | null>(null);
 
   const { document, setDocument, hasImage, metadata, clearDocument } =
     useImageDocument();
@@ -199,6 +210,10 @@ function App() {
   );
   const [filterBaseImageData, setFilterBaseImageData] =
     useState<ImageData | null>(null);
+  const [filterPreviewImageData, setFilterPreviewImageData] =
+    useState<ImageData | null>(null);
+  const [filterProcessing, setFilterProcessing] = useState(false);
+  const [filterProgress, setFilterProgress] = useState(0);
 
   const displayScaleMax = useMemo(() => {
     if (!document) {
@@ -236,6 +251,60 @@ function App() {
     levelsSettings,
   ]);
 
+  useEffect(() => {
+    filterAbortControllerRef.current?.abort();
+
+    if (
+      !filterBaseImageData ||
+      !filtersDialogOpen ||
+      !filterSettings.previewEnabled
+    ) {
+      setFilterPreviewImageData(null);
+      setFilterProcessing(false);
+      setFilterProgress(0);
+      return;
+    }
+
+    const abortController = new AbortController();
+    filterAbortControllerRef.current = abortController;
+
+    setFilterProcessing(true);
+    setFilterProgress(0);
+
+    applyFilterToImageDataAsync(
+      filterBaseImageData,
+      filterSettings,
+      abortController.signal,
+      setFilterProgress
+    )
+      .then((previewImageData) => {
+        if (!abortController.signal.aborted) {
+          setFilterPreviewImageData(previewImageData);
+          setErrorMessage("");
+        }
+      })
+      .catch((error) => {
+        if (!isAbortError(error)) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to render filter preview.";
+
+          setErrorMessage(message);
+          setFilterPreviewImageData(null);
+        }
+      })
+      .finally(() => {
+        if (!abortController.signal.aborted) {
+          setFilterProcessing(false);
+        }
+      });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [filterBaseImageData, filtersDialogOpen, filterSettings]);
+
   const levelsPreviewImageData = useMemo(() => {
     if (
       !document ||
@@ -258,18 +327,6 @@ function App() {
     levelsDialogState.previewEnabled,
     previewRenderSettings,
   ]);
-
-  const filterPreviewImageData = useMemo(() => {
-    if (
-      !filterBaseImageData ||
-      !filtersDialogOpen ||
-      !filterSettings.previewEnabled
-    ) {
-      return null;
-    }
-
-    return applyFilterToImageData(filterBaseImageData, filterSettings);
-  }, [filterBaseImageData, filtersDialogOpen, filterSettings]);
 
   const displayedImageData =
     filterPreviewImageData ?? levelsPreviewImageData ?? document?.imageData ?? null;
@@ -393,9 +450,14 @@ function App() {
   };
 
   const resetFiltersState = () => {
+    filterAbortControllerRef.current?.abort();
+    filterAbortControllerRef.current = null;
     setFiltersDialogOpen(false);
     setFilterSettings(createDefaultFilterSettings());
     setFilterBaseImageData(null);
+    setFilterPreviewImageData(null);
+    setFilterProcessing(false);
+    setFilterProgress(0);
   };
 
   const updateLevelsForSelectedChannel = (
@@ -493,6 +555,8 @@ function App() {
     resetLevelsState();
     setFilterSettings(createDefaultFilterSettings());
     setFilterBaseImageData(cloneImageData(document.imageData));
+    setFilterPreviewImageData(null);
+    setFilterProgress(0);
     setFiltersDialogOpen(true);
   };
 
@@ -511,17 +575,29 @@ function App() {
     setSampledPixel(null);
   };
 
-  const handleFiltersApply = () => {
-    if (!document || !filterBaseImageData) {
-      resetFiltersState();
+  const handleFiltersApply = async () => {
+    if (!document || !filterBaseImageData || filterProcessing) {
       return;
     }
 
+    const abortController = new AbortController();
+
+    filterAbortControllerRef.current?.abort();
+    filterAbortControllerRef.current = abortController;
+
     try {
-      const filteredImageData = applyFilterToImageData(
-        filterBaseImageData,
-        filterSettings
-      );
+      setFilterProcessing(true);
+      setFilterProgress(0);
+
+      const filteredImageData =
+        filterSettings.previewEnabled && filterPreviewImageData
+          ? filterPreviewImageData
+          : await applyFilterToImageDataAsync(
+              filterBaseImageData,
+              filterSettings,
+              abortController.signal,
+              setFilterProgress
+            );
 
       const hasAlpha = imageDataHasAlpha(filteredImageData);
 
@@ -536,10 +612,17 @@ function App() {
       setSampledPixel(null);
       setErrorMessage("");
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to apply filter.";
+      if (!isAbortError(error)) {
+        const message =
+          error instanceof Error ? error.message : "Failed to apply filter.";
 
-      setErrorMessage(message);
+        setErrorMessage(message);
+      }
+    } finally {
+      if (!abortController.signal.aborted) {
+        setFilterProcessing(false);
+        setFilterProgress(0);
+      }
     }
   };
 
@@ -962,6 +1045,8 @@ function App() {
       <FiltersDialog
         open={filtersDialogOpen}
         settings={filterSettings}
+        processing={filterProcessing}
+        progress={filterProgress}
         onChange={handleFilterSettingsChange}
         onReset={handleFiltersReset}
         onCancel={handleFiltersCancel}
