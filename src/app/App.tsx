@@ -1035,12 +1035,14 @@ function App() {
         onApply={handleLevelsApply}
       />
 
-      <ResizeDialog
-        open={resizeDialogOpen}
-        document={document}
-        onCancel={handleResizeCancel}
-        onApply={handleResizeApply}
-      />
+      {resizeDialogOpen && (
+        <ResizeDialog
+          open={resizeDialogOpen}
+          document={document}
+          onCancel={handleResizeCancel}
+          onApply={handleResizeApply}
+        />
+      )}
 
       <FiltersDialog
         open={filtersDialogOpen}

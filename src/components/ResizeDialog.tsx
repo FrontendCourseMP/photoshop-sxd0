@@ -107,18 +107,6 @@ function ResizeDialog({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open || !document) {
-      return;
-    }
-
-    setUnit("percent");
-    setWidthValue("100");
-    setHeightValue("100");
-    setKeepAspectRatio(true);
-    setInterpolationMethod("bilinear");
-  }, [open, document]);
-
   const aspectRatio = useMemo(() => {
     if (!document || document.height === 0) {
       return 1;
