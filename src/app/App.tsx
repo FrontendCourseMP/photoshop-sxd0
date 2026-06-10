@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, MouseEvent as ReactMouseEvent } from "react";
 import { Box } from "@mui/material";
-import Toolbar from "../components/Toolbar";
+import Toolbar from "../components/ToolBar";
 import CanvasViewport from "../components/CanvasViewport";
 import Sidebar from "../components/Sidebar";
 import StatusBar from "../components/StatusBar";
