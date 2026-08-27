@@ -10,6 +10,8 @@ export type KernelPresetId =
 
 export type EdgeHandlingStrategy = "black" | "white" | "copy";
 
+import type { ChannelModel } from "./image";
+
 export type FilterChannel = "red" | "green" | "blue" | "alpha";
 
 export type FilterChannels = Record<FilterChannel, boolean>;
@@ -123,15 +125,22 @@ export function getKernelPreset(presetId: KernelPresetId): KernelPreset {
   );
 }
 
-export function createDefaultFilterSettings(): FilterSettings {
+export function createDefaultFilterSettings(
+  channelModel: ChannelModel = "rgb",
+  hasAlpha = false
+): FilterSettings {
   const identityPreset = getKernelPreset("identity");
+  const rgbChannelsEnabled = channelModel === "rgb" || channelModel === "grayscale";
 
   return {
     mode: "kernel",
     presetId: identityPreset.id,
     kernel: [...identityPreset.kernel] as Kernel3x3,
     channels: {
-      ...DEFAULT_FILTER_CHANNELS,
+      red: rgbChannelsEnabled,
+      green: rgbChannelsEnabled,
+      blue: rgbChannelsEnabled,
+      alpha: hasAlpha,
     },
     edgeHandling: DEFAULT_EDGE_HANDLING,
     previewEnabled: true,

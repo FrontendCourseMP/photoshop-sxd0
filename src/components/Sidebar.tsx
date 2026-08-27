@@ -109,6 +109,7 @@ function Sidebar({
 
   return (
     <Paper
+      className="app-sidebar"
       elevation={0}
       sx={{
         width: 320,
@@ -131,7 +132,7 @@ function Sidebar({
           }}
         >
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            Channels
+            Channels{document ? ` (${document.channelCount})` : ""}
           </Typography>
         </Box>
 

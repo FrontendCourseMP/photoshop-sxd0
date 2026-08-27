@@ -12,6 +12,7 @@ function useImageDocument() {
         height: 0,
         colorDepth: "—",
         hasMask: false,
+        channelCount: 0,
       };
     }
 
@@ -21,6 +22,7 @@ function useImageDocument() {
       height: document.height,
       colorDepth: document.colorDepth,
       hasMask: document.hasMask,
+      channelCount: document.channelCount,
     };
   }, [document]);
 

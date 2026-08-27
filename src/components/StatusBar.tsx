@@ -7,6 +7,7 @@ interface StatusBarProps {
   height: number;
   colorDepth: string;
   hasMask: boolean;
+  channelCount: number;
   fileName: string;
   toolMode: string;
   channelsSummary: string;
@@ -23,6 +24,7 @@ function StatusBar({
   height,
   colorDepth,
   hasMask,
+  channelCount,
   fileName,
   toolMode,
   channelsSummary,
@@ -58,6 +60,7 @@ function StatusBar({
         <Typography variant="body2">Width: {width}</Typography>
         <Typography variant="body2">Height: {height}</Typography>
         <Typography variant="body2">Color depth: {colorDepth}</Typography>
+        <Typography variant="body2">Channels: {channelCount || "—"}</Typography>
 
         <Typography variant="body2">
           Mask: {hasMask ? "present" : "absent"}

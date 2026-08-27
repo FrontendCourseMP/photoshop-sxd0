@@ -1,10 +1,17 @@
 .app-shell {
   height: 100dvh;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 64px minmax(0, 1fr) 36px;
   background-color: #1e1e1e;
   color: #f5f5f5;
   overflow: hidden;
+}
+
+.app-shell > header,
+.app-toolbar,
+.app-toolbar__actions {
+  min-width: 0;
 }
 
 .app-workspace {
@@ -22,6 +29,10 @@
   padding: 16px;
   overflow: hidden;
   background-color: #2d2d30;
+}
+
+.app-toolbar__actions > * {
+  flex-shrink: 0;
 }
 
 .app-statusbar {
@@ -200,7 +211,7 @@
 
 .filters-dialog__channels-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px;
   padding: 12px;
   border: 1px solid #333;
@@ -219,4 +230,43 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(360px, 1fr) 360px;
+    overflow: auto;
+  }
+
+  .app-main .app-sidebar {
+    width: 100%;
+    min-width: 0;
+    height: 360px;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-toolbar {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .app-toolbar__title {
+    display: none;
+  }
+
+  .app-toolbar__actions {
+    justify-content: flex-start !important;
+  }
+
+  .levels-dialog__content,
+  .resize-dialog__content,
+  .filters-dialog__content {
+    padding: 16px;
+  }
+
+  .resize-dialog__pixel-summary {
+    grid-template-columns: 1fr 1fr;
+  }
 }

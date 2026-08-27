@@ -11,6 +11,7 @@ import FiltersDialog from "../components/FiltersDialog";
 import useImageDocument from "../hooks/useImageDocument";
 import type {
   ChannelVisibility,
+  ImageDocument,
   SampledPixelInfo,
   ToolMode,
 } from "../types/image";
@@ -33,7 +34,7 @@ import {
 } from "../types/scale";
 import type { FilterSettings } from "../types/filters";
 import { createDefaultFilterSettings } from "../types/filters";
-import { cloneImageData, imageDataHasAlpha } from "../utils/analyzeImageData";
+import { cloneImageData } from "../utils/analyzeImageData";
 import { applyChannelVisibility } from "../utils/applyChannelVisibility";
 import { applyConvolutionFilterToImageDataAsync } from "../utils/convolutionFilter";
 import { applyMedianFilterToImageDataAsync } from "../utils/medianFilter";
@@ -47,7 +48,6 @@ import { loadStandardImage } from "../utils/loadStandardImage";
 import { renderToCanvas } from "../utils/renderToCanvas";
 import {
   calculateDimensionsFromPercent,
-  calculateMaxScalePercentForPixelLimit,
   calculateScalePercentToFit,
   resizeImageData,
 } from "../utils/resizeImage";
@@ -66,17 +66,6 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function getUpdatedColorDepth(
-  channelModel: "grayscale" | "rgb",
-  hasAlpha: boolean
-): string {
-  if (channelModel === "grayscale") {
-    return hasAlpha ? "8-bit grayscale + alpha" : "8-bit grayscale";
-  }
-
-  return hasAlpha ? "32-bit RGBA" : "24-bit RGB";
-}
-
 function createEmptyHistogram(): HistogramData {
   return {
     bins: new Array<number>(256).fill(0),
@@ -85,8 +74,16 @@ function createEmptyHistogram(): HistogramData {
   };
 }
 
-function areAllChannelsVisible(channels: ChannelVisibility): boolean {
-  return channels.red && channels.green && channels.blue && channels.alpha;
+function areAllChannelsVisible(
+  channels: ChannelVisibility,
+  document: ImageDocument
+): boolean {
+  return (
+    channels.red &&
+    channels.green &&
+    channels.blue &&
+    (!document.hasMask || channels.alpha)
+  );
 }
 
 function getVisiblePixelValues(
@@ -160,8 +157,17 @@ const defaultChannels: ChannelVisibility = {
   red: true,
   green: true,
   blue: true,
-  alpha: true,
+  alpha: false,
 };
+
+function createDefaultChannels(hasAlpha: boolean): ChannelVisibility {
+  return {
+    red: true,
+    green: true,
+    blue: true,
+    alpha: hasAlpha,
+  };
+}
 
 const defaultLevelsDialogState: LevelsDialogState = {
   isOpen: false,
@@ -171,13 +177,13 @@ const defaultLevelsDialogState: LevelsDialogState = {
 };
 
 const DISPLAY_FIT_PADDING_PX = 50;
-const MAX_VIEW_PIXELS = 10_000_000;
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const canvasViewportRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const filterAbortControllerRef = useRef<AbortController | null>(null);
+  const fileLoadRequestRef = useRef(0);
 
   const { document, setDocument, hasImage, metadata, clearDocument } =
     useImageDocument();
@@ -215,23 +221,7 @@ function App() {
   const [filterProcessing, setFilterProcessing] = useState(false);
   const [filterProgress, setFilterProgress] = useState(0);
 
-  const displayScaleMax = useMemo(() => {
-    if (!document) {
-      return SCALE_PERCENT_MAX;
-    }
-
-    return calculateMaxScalePercentForPixelLimit(
-      document.width,
-      document.height,
-      MAX_VIEW_PIXELS
-    );
-  }, [document]);
-
-  useEffect(() => {
-    if (displayScalePercent > displayScaleMax) {
-      setDisplayScalePercent(displayScaleMax);
-    }
-  }, [displayScalePercent, displayScaleMax]);
+  const displayScaleMax = SCALE_PERCENT_MAX;
 
   useEffect(() => {
     if (!levelsDialogState.isOpen || !levelsDialogState.previewEnabled) {
@@ -268,6 +258,7 @@ function App() {
     const abortController = new AbortController();
     filterAbortControllerRef.current = abortController;
 
+    setFilterPreviewImageData(null);
     setFilterProcessing(true);
     setFilterProgress(0);
 
@@ -356,12 +347,12 @@ function App() {
       return null;
     }
 
-    if (areAllChannelsVisible(channels)) {
+    if (document && areAllChannelsVisible(channels, document)) {
       return scaledDisplayImageData;
     }
 
     return applyChannelVisibility(scaledDisplayImageData, channels);
-  }, [scaledDisplayImageData, channels]);
+  }, [scaledDisplayImageData, channels, document]);
 
   const levelsHistogram = useMemo(() => {
     if (!document || !levelsDialogState.isOpen) {
@@ -433,13 +424,7 @@ function App() {
       DISPLAY_FIT_PADDING_PX
     );
 
-    const maxSafeScale = calculateMaxScalePercentForPixelLimit(
-      imageData.width,
-      imageData.height,
-      MAX_VIEW_PIXELS
-    );
-
-    return clamp(fitScale, SCALE_PERCENT_MIN, maxSafeScale);
+    return clamp(fitScale, SCALE_PERCENT_MIN, SCALE_PERCENT_MAX);
   };
 
   const resetLevelsState = () => {
@@ -453,7 +438,9 @@ function App() {
     filterAbortControllerRef.current?.abort();
     filterAbortControllerRef.current = null;
     setFiltersDialogOpen(false);
-    setFilterSettings(createDefaultFilterSettings());
+    setFilterSettings(
+      createDefaultFilterSettings(document?.channelModel, document?.hasMask)
+    );
     setFilterBaseImageData(null);
     setFilterPreviewImageData(null);
     setFilterProcessing(false);
@@ -517,7 +504,6 @@ function App() {
         interpolationMethod
       );
 
-      const hasAlpha = imageDataHasAlpha(resizedImageData);
       const nextDisplayScale = calculateInitialDisplayScale(resizedImageData);
 
       setDisplayScalePercent(nextDisplayScale);
@@ -526,14 +512,12 @@ function App() {
         width: resizedImageData.width,
         height: resizedImageData.height,
         imageData: resizedImageData,
-        hasMask: hasAlpha,
-        colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
       });
 
       setResizeDialogOpen(false);
       setToolMode("none");
       setSampledPixel(null);
-      setChannels(defaultChannels);
+      setChannels(createDefaultChannels(document.hasMask));
       resetLevelsState();
       resetFiltersState();
       setErrorMessage("");
@@ -553,7 +537,9 @@ function App() {
     setToolMode("none");
     setSampledPixel(null);
     resetLevelsState();
-    setFilterSettings(createDefaultFilterSettings());
+    setFilterSettings(
+      createDefaultFilterSettings(document.channelModel, document.hasMask)
+    );
     setFilterBaseImageData(cloneImageData(document.imageData));
     setFilterPreviewImageData(null);
     setFilterProgress(0);
@@ -566,7 +552,9 @@ function App() {
   };
 
   const handleFiltersReset = () => {
-    setFilterSettings(createDefaultFilterSettings());
+    setFilterSettings(
+      createDefaultFilterSettings(document?.channelModel, document?.hasMask)
+    );
     setSampledPixel(null);
   };
 
@@ -599,13 +587,9 @@ function App() {
               setFilterProgress
             );
 
-      const hasAlpha = imageDataHasAlpha(filteredImageData);
-
       setDocument({
         ...document,
         imageData: filteredImageData,
-        hasMask: hasAlpha,
-        colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
       });
 
       resetFiltersState();
@@ -721,13 +705,9 @@ function App() {
       levelsSettings
     );
 
-    const hasAlpha = imageDataHasAlpha(appliedImageData);
-
     setDocument({
       ...document,
       imageData: appliedImageData,
-      hasMask: hasAlpha,
-      colorDepth: getUpdatedColorDepth(document.channelModel, hasAlpha),
     });
 
     resetLevelsState();
@@ -885,6 +865,7 @@ function App() {
   };
 
   const handleClear = () => {
+    fileLoadRequestRef.current += 1;
     clearDocument();
     setErrorMessage("");
     setToolMode("none");
@@ -923,6 +904,16 @@ function App() {
       return;
     }
 
+    const requestId = fileLoadRequestRef.current + 1;
+    fileLoadRequestRef.current = requestId;
+
+    setToolMode("none");
+    setSampledPixel(null);
+    resetLevelsState();
+    resetFiltersState();
+    setResizeDialogOpen(false);
+    setErrorMessage("");
+
     try {
       const extension = getFileExtension(selectedFile.name);
 
@@ -930,6 +921,10 @@ function App() {
         extension === "gb7"
           ? decodeGB7(await selectedFile.arrayBuffer(), selectedFile.name)
           : await loadStandardImage(selectedFile);
+
+      if (requestId !== fileLoadRequestRef.current) {
+        return;
+      }
 
       const initialDisplayScale = calculateInitialDisplayScale(
         loadedDocument.imageData
@@ -939,20 +934,18 @@ function App() {
       setDocument(loadedDocument);
       setErrorMessage("");
       setToolMode("none");
-      setChannels(defaultChannels);
-      setSampledPixel(null);
-      resetLevelsState();
-      resetFiltersState();
-      setResizeDialogOpen(false);
+      setChannels(createDefaultChannels(loadedDocument.hasMask));
     } catch (error) {
+      if (requestId !== fileLoadRequestRef.current) {
+        return;
+      }
+
       const message =
         error instanceof Error
           ? error.message
           : "Failed to open selected image file.";
 
       setErrorMessage(message);
-      clearDocument();
-      setDisplayScalePercent(SCALE_PERCENT_DEFAULT);
     } finally {
       event.target.value = "";
     }
@@ -1009,6 +1002,7 @@ function App() {
         height={metadata.height}
         colorDepth={metadata.colorDepth}
         hasMask={metadata.hasMask}
+        channelCount={metadata.channelCount}
         toolMode={toolMode === "eyedropper" ? "Eyedropper" : "None"}
         channelsSummary={channelsSummary}
         hasImage={hasImage}
@@ -1046,6 +1040,7 @@ function App() {
 
       <FiltersDialog
         open={filtersDialogOpen}
+        document={document}
         settings={filterSettings}
         processing={filterProcessing}
         progress={filterProgress}

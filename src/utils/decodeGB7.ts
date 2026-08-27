@@ -87,6 +87,7 @@ export function decodeGB7(buffer: ArrayBuffer, fileName: string): ImageDocument 
     colorDepth: hasMask ? "7-bit grayscale + 1-bit mask" : "7-bit grayscale",
     hasMask,
     channelModel: "grayscale",
+    channelCount: hasMask ? 2 : 1,
     imageData: new ImageData(rgba, width, height),
   };
 }

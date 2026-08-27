@@ -1,5 +1,6 @@
 import type { ImageDocument, SupportedImageFormat } from "../types/image";
-import { analyzeImageData } from "./analyzeImageData";
+import type { StandardImageMetadata } from "./imageFormatMetadata";
+import { parseStandardImageMetadata } from "./imageFormatMetadata";
 
 const MAX_STANDARD_IMAGE_PIXELS = 20_000_000;
 
@@ -15,22 +16,6 @@ function getFormatFromFile(file: File): SupportedImageFormat {
   }
 
   throw new Error("Unsupported file format. Please choose PNG or JPG image.");
-}
-
-function getColorDepth(
-  format: SupportedImageFormat,
-  hasAlpha: boolean,
-  channelModel: "grayscale" | "rgb"
-): string {
-  if (channelModel === "grayscale") {
-    return hasAlpha ? "8-bit grayscale + alpha" : "8-bit grayscale";
-  }
-
-  if (format === "png" && hasAlpha) {
-    return "32-bit RGBA";
-  }
-
-  return "24-bit RGB";
 }
 
 function validateImageSize(width: number, height: number): void {
@@ -76,9 +61,16 @@ function createImageDocumentFromSource(
   format: SupportedImageFormat,
   source: CanvasImageSource,
   width: number,
-  height: number
+  height: number,
+  metadata: StandardImageMetadata
 ): ImageDocument {
   validateImageSize(width, height);
+
+  if (width !== metadata.width || height !== metadata.height) {
+    throw new Error(
+      `Image dimensions do not match the file header (${metadata.width} × ${metadata.height}).`
+    );
+  }
 
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d", {
@@ -95,26 +87,22 @@ function createImageDocumentFromSource(
   context.drawImage(source, 0, 0, width, height);
 
   const imageData = context.getImageData(0, 0, width, height);
-  const analysis = analyzeImageData(imageData);
-
   return {
     fileName,
     format,
     width,
     height,
-    colorDepth: getColorDepth(
-      format,
-      analysis.hasAlpha,
-      analysis.channelModel
-    ),
-    hasMask: analysis.hasAlpha,
-    channelModel: analysis.channelModel,
+    colorDepth: metadata.colorDepth,
+    hasMask: metadata.hasAlpha,
+    channelModel: metadata.channelModel,
+    channelCount: metadata.channelCount,
     imageData,
   };
 }
 
 async function createImageDataFromFile(file: File): Promise<ImageDocument> {
   const format = getFormatFromFile(file);
+  const metadata = parseStandardImageMetadata(format, await file.arrayBuffer());
   const bitmap = await loadImageBitmap(file);
 
   if (bitmap) {
@@ -124,7 +112,8 @@ async function createImageDataFromFile(file: File): Promise<ImageDocument> {
         format,
         bitmap,
         bitmap.width,
-        bitmap.height
+        bitmap.height,
+        metadata
       );
     } finally {
       bitmap.close();
@@ -141,7 +130,8 @@ async function createImageDataFromFile(file: File): Promise<ImageDocument> {
       format,
       image,
       image.naturalWidth,
-      image.naturalHeight
+      image.naturalHeight,
+      metadata
     );
   } finally {
     URL.revokeObjectURL(objectUrl);

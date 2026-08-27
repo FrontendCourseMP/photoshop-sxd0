@@ -21,9 +21,11 @@ import type {
   KernelPresetId,
 } from "../types/filters";
 import { KERNEL_PRESETS, getKernelPreset } from "../types/filters";
+import type { ImageDocument } from "../types/image";
 
 interface FiltersDialogProps {
   open: boolean;
+  document: ImageDocument | null;
   settings: FilterSettings;
   processing: boolean;
   progress: number;
@@ -33,27 +35,31 @@ interface FiltersDialogProps {
   onApply: () => void;
 }
 
-const FILTER_CHANNELS: Array<{
-  channel: FilterChannel;
+type FilterUiChannel = FilterChannel | "grayscale";
+
+function getFilterChannels(document: ImageDocument | null): Array<{
+  channel: FilterUiChannel;
   label: string;
-}> = [
-  {
-    channel: "red",
-    label: "Red",
-  },
-  {
-    channel: "green",
-    label: "Green",
-  },
-  {
-    channel: "blue",
-    label: "Blue",
-  },
-  {
-    channel: "alpha",
-    label: "Alpha",
-  },
-];
+}> {
+  if (!document) {
+    return [];
+  }
+
+  const colorChannels: Array<{ channel: FilterUiChannel; label: string }> =
+    document.channelModel === "grayscale"
+      ? [{ channel: "grayscale", label: "Grayscale" }]
+      : [
+          { channel: "red", label: "Red" },
+          { channel: "green", label: "Green" },
+          { channel: "blue", label: "Blue" },
+        ];
+
+  if (document.hasMask) {
+    colorChannels.push({ channel: "alpha", label: "Alpha" });
+  }
+
+  return colorChannels;
+}
 
 const nativeSelectSx = {
   color: "#f5f5f5",
@@ -123,6 +129,7 @@ function getModeDescription(mode: FilterMode): string {
 
 function FiltersDialog({
   open,
+  document,
   settings,
   processing,
   progress,
@@ -184,7 +191,20 @@ function FiltersDialog({
     });
   };
 
-  const handleChannelChange = (channel: FilterChannel, checked: boolean) => {
+  const handleChannelChange = (channel: FilterUiChannel, checked: boolean) => {
+    if (channel === "grayscale") {
+      onChange({
+        ...settings,
+        channels: {
+          ...settings.channels,
+          red: checked,
+          green: checked,
+          blue: checked,
+        },
+      });
+      return;
+    }
+
     onChange({
       ...settings,
       channels: {
@@ -192,6 +212,20 @@ function FiltersDialog({
         [channel]: checked,
       },
     });
+  };
+
+  const filterChannels = getFilterChannels(document);
+
+  const isChannelChecked = (channel: FilterUiChannel): boolean => {
+    if (channel === "grayscale") {
+      return (
+        settings.channels.red &&
+        settings.channels.green &&
+        settings.channels.blue
+      );
+    }
+
+    return settings.channels[channel];
   };
 
   const handleEdgeHandlingChange = (edgeHandling: EdgeHandlingStrategy) => {
@@ -345,16 +379,16 @@ function FiltersDialog({
 
           <Box>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              Channels
+              Channels{document ? ` (${document.channelCount})` : ""}
             </Typography>
 
             <Box className="filters-dialog__channels-grid">
-              {FILTER_CHANNELS.map((item) => (
+              {filterChannels.map((item) => (
                 <FormControlLabel
                   key={item.channel}
                   control={
                     <Checkbox
-                      checked={settings.channels[item.channel]}
+                      checked={isChannelChecked(item.channel)}
                       onChange={(event) =>
                         handleChannelChange(item.channel, event.target.checked)
                       }

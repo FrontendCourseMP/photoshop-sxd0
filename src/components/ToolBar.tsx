@@ -44,6 +44,7 @@ function Toolbar({
   return (
     <AppBar position="static" elevation={0} color="transparent">
       <MuiToolbar
+        className="app-toolbar"
         sx={{
           minHeight: "64px",
           borderBottom: "1px solid #333",
@@ -53,15 +54,27 @@ function Toolbar({
           gap: 2,
         }}
       >
-        <Typography variant="h6" sx={{ fontSize: 18, fontWeight: 600 }}>
+        <Typography
+          className="app-toolbar__title"
+          variant="h6"
+          sx={{ fontSize: 18, fontWeight: 600, flexShrink: 0 }}
+        >
           Image Processing Lab
         </Typography>
 
         <Stack
+          className="app-toolbar__actions"
           direction="row"
           spacing={1}
           useFlexGap
-          sx={{ flexWrap: "wrap" }}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            flexWrap: "nowrap",
+            justifyContent: "flex-end",
+            overflowX: "auto",
+            py: 0.5,
+          }}
         >
           <Button
             variant="contained"
