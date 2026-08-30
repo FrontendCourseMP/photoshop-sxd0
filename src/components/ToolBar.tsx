@@ -71,7 +71,7 @@ function Toolbar({
             flex: 1,
             minWidth: 0,
             flexWrap: "nowrap",
-            justifyContent: "flex-end",
+            justifyContent: "flex-start",
             overflowX: "auto",
             py: 0.5,
           }}

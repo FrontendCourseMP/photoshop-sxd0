@@ -98,6 +98,29 @@ function CanvasViewport({
             </Box>
           )}
 
+          {hasImage && errorMessage && (
+            <Box
+              role="alert"
+              sx={{
+                position: "absolute",
+                top: 16,
+                right: 16,
+                left: 16,
+                zIndex: 2,
+                px: 1.5,
+                py: 1,
+                border: "1px solid #ef5350",
+                borderRadius: 1,
+                backgroundColor: "rgba(52, 24, 24, 0.96)",
+                color: "#ffcdd2",
+                fontSize: 13,
+                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.35)",
+              }}
+            >
+              {errorMessage}
+            </Box>
+          )}
+
           <Box
             sx={{
               minWidth: "100%",

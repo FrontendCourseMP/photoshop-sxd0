@@ -232,6 +232,16 @@
   gap: 12px;
 }
 
+@media (max-width: 1400px) {
+  .app-toolbar__title {
+    display: none;
+  }
+
+  .app-toolbar__actions {
+    justify-content: flex-start !important;
+  }
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: minmax(0, 1fr);
@@ -250,10 +260,6 @@
   .app-toolbar {
     padding-left: 8px !important;
     padding-right: 8px !important;
-  }
-
-  .app-toolbar__title {
-    display: none;
   }
 
   .app-toolbar__actions {
